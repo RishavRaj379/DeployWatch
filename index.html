@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DeployWatch — Production Readiness Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111;
+    --border: #222;
+    --accent: #00ff87;
+    --accent2: #00c9ff;
+    --warn: #ffb800;
+    --danger: #ff4444;
+    --text: #f0f0f0;
+    --muted: #666;
+    --mono: 'Space Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--display);
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,135,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,135,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  header { padding: 40px 0 0; display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; }
+  .dot { width: 10px; height: 10px; background: var(--accent); border-radius: 50%;
+         box-shadow: 0 0 12px var(--accent); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 12px var(--accent)} 50%{box-shadow:0 0 28px var(--accent)} }
+  .tag { font-family: var(--mono); font-size: 11px; padding: 4px 10px; border: 1px solid var(--border); color: var(--muted); letter-spacing: 1px; }
+
+  .hero { padding: 56px 0 40px; }
+  .hero h1 { font-size: clamp(40px, 7vw, 70px); font-weight: 800; line-height: 1; letter-spacing: -2px; margin-bottom: 18px; }
+  .hero h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero p { font-size: 17px; color: var(--muted); line-height: 1.6; max-width: 500px; }
+
+  .box { background: var(--surface); border: 1px solid var(--border); padding: 28px; margin-bottom: 32px; position: relative; }
+  .box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+  .row { display: flex; gap: 10px; }
+  input[type=text] {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 13px;
+    padding: 13px 15px; outline: none; transition: border-color 0.2s;
+  }
+  input[type=text]::placeholder { color: var(--muted); }
+  input[type=text]:focus { border-color: var(--accent); }
+
+  .btn {
+    background: var(--accent); color: #000; border: none;
+    font-family: var(--display); font-weight: 700; font-size: 14px;
+    padding: 13px 26px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn:hover { background: #00e87a; }
+  .btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+  .hint { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 10px; }
+
+  .status {
+    display: none; align-items: center; gap: 10px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    padding: 13px 16px; margin-top: 14px;
+    font-family: var(--mono); font-size: 13px; color: var(--accent2);
+  }
+  .spin { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent2); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .err { display: none; background: rgba(255,68,68,0.08); border: 1px solid var(--danger); padding: 13px 16px; margin-top: 14px; font-family: var(--mono); font-size: 13px; color: var(--danger); }
+
+  /* Results */
+  #results { display: none; animation: up 0.4s ease; }
+  @keyframes up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+  .score-card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 28px; display: grid;
+    grid-template-columns: auto 1fr auto; align-items: center;
+    gap: 28px; margin-bottom: 2px; overflow: hidden; position: relative;
+  }
+  .score-card::after { content: attr(data-score); position: absolute; right: -10px; top: -10px; font-size: 160px; font-weight: 800; opacity: 0.04; line-height: 1; pointer-events: none; }
+
+  .circle { width: 90px; height: 90px; border-radius: 50%; border: 3px solid; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
+  .circle .num { font-size: 28px; font-weight: 800; font-family: var(--mono); line-height: 1; }
+  .circle .den { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  .score-info h2 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+  .score-info p { font-size: 13px; color: var(--muted); font-family: var(--mono); }
+
+  .grade { font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 6px 12px; letter-spacing: 1px; text-transform: uppercase; border: 1px solid; }
+
+  .cats { display: flex; flex-direction: column; gap: 2px; margin-bottom: 2px; }
+  .cat {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 16px 22px; display: grid;
+    grid-template-columns: 1fr auto 110px;
+    align-items: center; gap: 18px; cursor: pointer; transition: border-color 0.2s;
+  }
+  .cat:hover { border-color: #333; }
+  .cat-name { font-size: 14px; font-weight: 600; }
+  .cat-sc { font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+  .track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 2px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+
+  .drops { display: none; background: var(--bg); border: 1px solid var(--border); border-top: none; padding: 14px 22px; margin-top: -2px; margin-bottom: 2px; }
+  .drops.open { display: block; }
+  .issue { font-family: var(--mono); font-size: 12px; color: var(--warn); padding: 3px 0 3px 14px; position: relative; }
+  .issue::before { content: '!'; position: absolute; left: 0; }
+  .pass { font-family: var(--mono); font-size: 12px; color: var(--accent); padding: 3px 0 3px 14px; position: relative; }
+  .pass::before { content: '✓'; position: absolute; left: 0; }
+
+  .pr-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 22px; margin-bottom: 2px; }
+  .pr-card h3 { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .pr-link { display: inline-block; font-family: var(--mono); font-size: 13px; color: var(--accent2); text-decoration: none; border-bottom: 1px solid var(--accent2); margin-top: 8px; }
+  .fixes { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .fix { background: var(--bg); border: 1px solid var(--border); padding: 11px 15px; }
+  .fix-file { font-family: var(--mono); font-size: 12px; color: var(--accent2); margin-bottom: 3px; }
+  .fix-exp { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  .lbl { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin: 22px 0 8px; }
+
+  footer { border-top: 1px solid var(--border); padding: 28px 0; margin-top: 56px; display: flex; justify-content: space-between; }
+  footer p { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  .c-green { color: var(--accent); border-color: var(--accent); }
+  .c-yellow { color: var(--warn); border-color: var(--warn); }
+  .c-orange { color: #ff8c00; border-color: #ff8c00; }
+  .c-red { color: var(--danger); border-color: var(--danger); }
+  .bg-green { background: var(--accent); }
+  .bg-yellow { background: var(--warn); }
+  .bg-orange { background: #ff8c00; }
+  .bg-red { background: var(--danger); }
+
+  @media(max-width:580px) {
+    .row { flex-direction: column; }
+    .score-card { grid-template-columns: 1fr; }
+    .score-card::after { display: none; }
+    .cat { grid-template-columns: 1fr auto; }
+    .track { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><div class="dot"></div>DeployWatch</div>
+    <div class="tag">AGENT v1.0</div>
+  </header>
+
+  <section class="hero">
+    <h1>Is your repo<br/><span>prod-ready?</span></h1>
+    <p>Paste a GitHub URL. The agent scans, scores, generates fixes, and opens a PR — automatically.</p>
+  </section>
+
+  <div class="box">
+    <div class="row">
+      <input type="text" id="url" placeholder="https://github.com/owner/repo" autocomplete="off" spellcheck="false"/>
+      <button class="btn" id="btn" onclick="run()">Run Analysis</button>
+    </div>
+    <p class="hint">// health · observability · infra · failure handling · config · deployment</p>
+    <div class="status" id="status"><div class="spin"></div><span id="status-text">Analysing...</span></div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div id="results">
+    <div class="lbl">// result</div>
+
+    <div class="score-card" id="score-card">
+      <div class="circle" id="circle">
+        <div class="num" id="score-num">--</div>
+        <div class="den">/100</div>
+      </div>
+      <div class="score-info">
+        <h2 id="repo-name">--</h2>
+        <p id="file-ct">-- files scanned</p>
+        <p id="cap-warn" style="display:none;color:var(--danger);margin-top:5px;font-size:12px;">⚠ score capped — critical category scored zero</p>
+      </div>
+      <div class="grade" id="grade">--</div>
+    </div>
+
+    <div class="lbl">// categories</div>
+    <div class="cats" id="cats"></div>
+
+    <div class="pr-card" id="pr-card" style="display:none">
+      <h3>Agent opened PR</h3>
+      <p style="font-size:13px;color:var(--muted)">Generated fixes and submitted a pull request to your repo.</p>
+      <a class="pr-link" id="pr-link" href="#" target="_blank">View PR on GitHub →</a>
+      <div class="fixes" id="fixes"></div>
+    </div>
+  </div>
+
+  <footer><p>DeployWatch — Production Engineering Hackathon</p></footer>
+</div>
+
+<script>
+  const API = '/api';
+
+  function color(grade) {
+    return grade === 'Production Ready' ? 'green' : grade === 'Needs Attention' ? 'yellow' : grade === 'Not Production Safe' ? 'orange' : 'red';
+  }
+  function barColor(pct) {
+    return pct >= 0.9 ? 'bg-green' : pct >= 0.7 ? 'bg-yellow' : pct >= 0.5 ? 'bg-orange' : 'bg-red';
+  }
+
+  function showStatus(msg) {
+    document.getElementById('status').style.display = 'flex';
+    document.getElementById('status-text').textContent = msg;
+  }
+  function hideStatus() { document.getElementById('status').style.display = 'none'; }
+
+  function showErr(msg) {
+    hideStatus();
+    const el = document.getElementById('err');
+    el.style.display = 'block';
+    el.textContent = '// error: ' + msg;
+    document.getElementById('btn').disabled = false;
+  }
+
+  function render(r) {
+    hideStatus();
+    document.getElementById('btn').disabled = false;
+    document.getElementById('results').style.display = 'block';
+
+    const c = color(r.grade);
+    document.getElementById('score-card').setAttribute('data-score', r.score);
+    const circle = document.getElementById('circle');
+    circle.className = 'circle c-' + c;
+    document.getElementById('score-num').textContent = r.score;
+    document.getElementById('repo-name').textContent = r.repo_name;
+    document.getElementById('file-ct').textContent = r.file_count + ' files scanned';
+    if (r.capped) document.getElementById('cap-warn').style.display = 'block';
+
+    const grade = document.getElementById('grade');
+    grade.textContent = r.grade;
+    grade.className = 'grade c-' + c;
+
+    const cats = document.getElementById('cats');
+    cats.innerHTML = '';
+    r.categories.forEach((cat, i) => {
+      const pct = cat.score / cat.max_score;
+      const sc = pct >= 0.7 ? 'var(--accent)' : pct >= 0.5 ? 'var(--warn)' : 'var(--danger)';
+
+      const row = document.createElement('div');
+      row.className = 'cat';
+      row.innerHTML = `
+        <div class="cat-name">${cat.name}</div>
+        <div class="cat-sc" style="color:${sc}">${cat.score}/${cat.max_score}</div>
+        <div class="track"><div class="fill ${barColor(pct)}" id="b${i}" style="width:0%"></div></div>`;
+
+      const drop = document.createElement('div');
+      drop.className = 'drops';
+      cat.passed.forEach(p => { const d = document.createElement('div'); d.className = 'pass'; d.textContent = p; drop.appendChild(d); });
+      cat.issues.forEach(is => { const d = document.createElement('div'); d.className = 'issue'; d.textContent = is; drop.appendChild(d); });
+
+      row.onclick = () => drop.classList.toggle('open');
+      cats.appendChild(row);
+      cats.appendChild(drop);
+      setTimeout(() => { document.getElementById('b' + i).style.width = Math.round(pct * 100) + '%'; }, 80 + i * 60);
+    });
+
+    if (r.pr_url) {
+      document.getElementById('pr-card').style.display = 'block';
+      document.getElementById('pr-link').href = r.pr_url;
+      const fixList = document.getElementById('fixes');
+      fixList.innerHTML = '';
+      (r.fixes || []).forEach(f => {
+        const el = document.createElement('div');
+        el.className = 'fix';
+        el.innerHTML = `<div class="fix-file">${f.file}</div><div class="fix-exp">${f.explanation}</div>`;
+        fixList.appendChild(el);
+      });
+    }
+  }
+
+  async function run() {
+    const url = document.getElementById('url').value.trim();
+    if (!url) { showErr('Enter a GitHub repo URL'); return; }
+    if (!url.startsWith('http')) { showErr('URL must start with https://'); return; }
+
+    document.getElementById('err').style.display = 'none';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('pr-card').style.display = 'none';
+    document.getElementById('cap-warn').style.display = 'none';
+    document.getElementById('btn').disabled = true;
+    showStatus('Cloning repo...');
+
+    try {
+      const res = await fetch(`${API}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo_url: url }),
+      });
+
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        showErr(e.detail || `Server error ${res.status}`);
+        return;
+      }
+
+      showStatus('Rendering results...');
+      render(await res.json());
+    } catch (e) {
+      showErr('Cannot reach the server.');
+    }
+  }
+
+  document.getElementById('url').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+</script>
+</body>
+</html>
