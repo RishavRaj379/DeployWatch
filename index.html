@@ -210,7 +210,7 @@
 </div>
 
 <script>
-  const API = '/api';
+  const API = 'https://deploywatch-production-up.railway.app/api';
 
   function color(grade) {
     return grade === 'Production Ready' ? 'green' : grade === 'Needs Attention' ? 'yellow' : grade === 'Not Production Safe' ? 'orange' : 'red';
@@ -289,6 +289,39 @@
     }
   }
 
+  const STATUS_MSGS = {
+    pending:     'Waiting in queue...',
+    cloning:     'Cloning repository...',
+    scoring:     'Scoring across 6 categories...',
+    fixing:      'Claude generating fixes...',
+    opening_pr:  'Opening GitHub PR...',
+    done:        'Done!',
+    failed:      'Analysis failed.',
+  };
+
+  let pollTimer = null;
+
+  async function poll(jobId) {
+    try {
+      const res = await fetch(`${API}/status/${jobId}`);
+      if (!res.ok) { showErr('Lost the job — try again'); return; }
+      const data = await res.json();
+
+      showStatus(STATUS_MSGS[data.status] || data.status);
+
+      if (data.status === 'done') {
+        clearInterval(pollTimer);
+        render(data.result);
+      } else if (data.status === 'failed') {
+        clearInterval(pollTimer);
+        showErr(data.error || 'Unknown error — check Railway logs');
+      }
+    } catch (e) {
+      clearInterval(pollTimer);
+      showErr('Lost connection to server.');
+    }
+  }
+
   async function run() {
     const url = document.getElementById('url').value.trim();
     if (!url) { showErr('Enter a GitHub repo URL'); return; }
@@ -299,7 +332,8 @@
     document.getElementById('pr-card').style.display = 'none';
     document.getElementById('cap-warn').style.display = 'none';
     document.getElementById('btn').disabled = true;
-    showStatus('Cloning repo...');
+    if (pollTimer) clearInterval(pollTimer);
+    showStatus('Submitting...');
 
     try {
       const res = await fetch(`${API}/analyze`, {
@@ -314,8 +348,10 @@
         return;
       }
 
-      showStatus('Rendering results...');
-      render(await res.json());
+      const { job_id } = await res.json();
+      showStatus('Queued — waiting for worker...');
+      pollTimer = setInterval(() => poll(job_id), 2000);
+
     } catch (e) {
       showErr('Cannot reach the server.');
     }
