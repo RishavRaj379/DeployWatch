@@ -1,2 +1,2 @@
-ANTHROPIC_API_KEY = "your-anthropic-key-here"
-GITHUB_TOKEN      = "your-github-token-here"
+ANTHROPIC_API_KEY = "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"
+GITHUB_TOKEN      = "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"
