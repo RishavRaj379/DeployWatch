@@ -4,283 +4,923 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>DeployWatch — Production Readiness Agent</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Cabinet+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet"/>
 <style>
-  :root {
-    --bg: #0a0a0a; --surface: #111; --border: #1e1e1e;
-    --accent: #00ff87; --accent2: #00c9ff; --warn: #ffb800; --danger: #ff4444;
-    --text: #f0f0f0; --muted: #555;
-    --mono: 'Space Mono', monospace; --display: 'Syne', sans-serif;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: var(--display); min-height: 100vh; }
-  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,255,135,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.025) 1px,transparent 1px); background-size: 48px 48px; pointer-events: none; z-index: 0; }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
-  header { padding: 36px 0 0; display: flex; align-items: center; justify-content: space-between; }
-  .logo { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 800; }
-  .dot { width: 9px; height: 9px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); animation: pulse 2s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{box-shadow:0 0 10px var(--accent)} 50%{box-shadow:0 0 24px var(--accent)} }
-  .tag { font-family: var(--mono); font-size: 10px; padding: 4px 10px; border: 1px solid var(--border); color: var(--muted); letter-spacing: 1.5px; }
-  .hero { padding: 52px 0 36px; }
-  .hero h1 { font-size: clamp(38px,6.5vw,68px); font-weight: 800; line-height: 0.95; letter-spacing: -2.5px; margin-bottom: 16px; }
-  .hero h1 span { background: linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-  .hero p { font-size: 16px; color: var(--muted); line-height: 1.65; max-width: 480px; }
-  .box { background: var(--surface); border: 1px solid var(--border); padding: 26px; margin-bottom: 28px; position: relative; }
-  .box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg,var(--accent),var(--accent2)); }
-  .row { display: flex; gap: 8px; }
-  input[type=text] { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 13px; padding: 12px 14px; outline: none; transition: border-color 0.2s; }
-  input[type=text]::placeholder { color: var(--muted); }
-  input[type=text]:focus { border-color: rgba(0,255,135,0.4); }
-  .btn { background: var(--accent); color: #000; border: none; font-family: var(--display); font-weight: 700; font-size: 13px; padding: 12px 24px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-  .btn:hover { background: #00e87a; }
-  .btn:disabled { background: #1a1a1a; color: var(--muted); cursor: not-allowed; }
-  .hint { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 10px; }
-  .status { display: none; align-items: center; gap: 10px; border: 1px solid var(--border); border-left: 2px solid var(--accent2); padding: 12px 14px; margin-top: 12px; font-family: var(--mono); font-size: 12px; color: var(--accent2); }
-  .spin { width: 12px; height: 12px; border: 1.5px solid var(--border); border-top-color: var(--accent2); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
-  @keyframes spin { to{transform:rotate(360deg)} }
-  .err { display: none; border: 1px solid rgba(255,68,68,0.3); background: rgba(255,68,68,0.05); padding: 12px 14px; margin-top: 12px; font-family: var(--mono); font-size: 12px; color: var(--danger); }
-  #results { display: none; animation: up 0.5s ease; }
-  @keyframes up { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-  .score-hero { background: var(--surface); border: 1px solid var(--border); padding: 28px; margin-bottom: 2px; position: relative; overflow: hidden; }
-  .score-hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg,var(--accent),var(--accent2)); }
-  .score-top { display: flex; align-items: center; gap: 24px; }
-  .big-score { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 88px; height: 88px; border-radius: 50%; border: 2px solid; flex-shrink: 0; }
-  .big-score .num { font-size: 26px; font-weight: 800; font-family: var(--mono); line-height: 1; }
-  .big-score .den { font-size: 10px; color: var(--muted); font-family: var(--mono); }
-  .score-meta h2 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
-  .score-meta p { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 8px; }
-  .grade-pill { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 4px 12px; letter-spacing: 1.5px; text-transform: uppercase; border: 1px solid; }
-  .dims { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
-  .dim { background: var(--bg); border: 1px solid var(--border); padding: 14px 16px; cursor: pointer; transition: border-color 0.2s; }
-  .dim:hover { border-color: #2a2a2a; }
-  .dim-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .dim-name { font-size: 12px; font-weight: 600; }
-  .dim-score { font-family: var(--mono); font-size: 11px; }
-  .track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .fill { height: 100%; border-radius: 2px; transition: width 1s cubic-bezier(0.4,0,0.2,1); }
-  .dim-detail { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
-  .dim-detail.open { display: block; }
-  .detail-item { font-family: var(--mono); font-size: 10px; padding: 2px 0 2px 14px; position: relative; line-height: 1.5; }
-  .detail-item.good { color: var(--accent); }
-  .detail-item.good::before { content: '✓'; position: absolute; left: 0; }
-  .detail-item.bad { color: var(--warn); }
-  .detail-item.bad::before { content: '!'; position: absolute; left: 0; }
-  .recs { margin-top: 2px; }
-  .rec { background: var(--surface); border: 1px solid var(--border); border-left: 2px solid; padding: 16px 18px; margin-bottom: 2px; }
-  .rec-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-  .rec-priority { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; border: 1px solid; }
-  .rec-title { font-size: 13px; font-weight: 700; }
-  .rec-body { font-size: 12px; color: var(--muted); line-height: 1.6; }
-  .rec-steps { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
-  .rec-step { font-family: var(--mono); font-size: 10px; color: var(--muted); padding-left: 14px; position: relative; }
-  .rec-step::before { content: '→'; position: absolute; left: 0; color: var(--accent); }
-  .lbl { font-family: var(--mono); font-size: 9px; letter-spacing: 2.5px; color: var(--muted); text-transform: uppercase; margin: 20px 0 6px; }
-  footer { border-top: 1px solid var(--border); padding: 24px 0; margin-top: 48px; display: flex; justify-content: space-between; }
-  footer p { font-family: var(--mono); font-size: 10px; color: var(--muted); }
-  .c-green{color:var(--accent);border-color:var(--accent)} .c-yellow{color:var(--warn);border-color:var(--warn)} .c-orange{color:#ff8c00;border-color:#ff8c00} .c-red{color:var(--danger);border-color:var(--danger)}
-  .f-green{background:var(--accent)} .f-yellow{background:var(--warn)} .f-orange{background:#ff8c00} .f-red{background:var(--danger)}
-  @media(max-width:600px){.row{flex-direction:column}.dims{grid-template-columns:1fr}.score-top{flex-direction:column}}
+:root {
+  --bg: #080B10;
+  --surface: #0E1219;
+  --surface2: #141820;
+  --border: #1E2530;
+  --border2: #252D3A;
+  --accent: #4DFFA0;
+  --accent-dim: rgba(77,255,160,0.12);
+  --blue: #4DB8FF;
+  --blue-dim: rgba(77,184,255,0.12);
+  --warn: #FFB830;
+  --warn-dim: rgba(255,184,48,0.12);
+  --danger: #FF5050;
+  --danger-dim: rgba(255,80,80,0.12);
+  --purple: #B87FFF;
+  --text: #E8EDF5;
+  --text2: #8892A4;
+  --text3: #505A6B;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Cabinet Grotesk', sans-serif;
+  --r: 10px;
+  --r-sm: 6px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Subtle grid */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(77,255,160,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77,255,160,0.018) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none; z-index: 0;
+}
+
+/* Glow orbs */
+body::after {
+  content: '';
+  position: fixed;
+  top: -200px; left: 50%;
+  transform: translateX(-50%);
+  width: 800px; height: 500px;
+  background: radial-gradient(ellipse, rgba(77,255,160,0.04) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+.wrap { max-width: 900px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
+
+/* ── Header ── */
+header {
+  padding: 40px 0 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.logo {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
+}
+
+.logo-icon {
+  width: 36px; height: 36px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(77,255,160,0.3);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+
+.logo-icon::before {
+  content: '';
+  width: 10px; height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--accent);
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 8px var(--accent); transform: scale(1); }
+  50% { box-shadow: 0 0 20px var(--accent), 0 0 40px rgba(77,255,160,0.2); transform: scale(1.1); }
+}
+
+.nav-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  color: var(--text3);
+  letter-spacing: 0.5px;
+}
+
+/* ── Hero ── */
+.hero { padding: 72px 0 48px; }
+
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 13px;
+  color: var(--accent); margin-bottom: 24px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(77,255,160,0.2);
+  padding: 6px 14px; border-radius: 20px;
+}
+
+.hero-eyebrow::before { content: '◆'; font-size: 8px; }
+
+.hero h1 {
+  font-size: clamp(44px, 6.5vw, 76px);
+  font-weight: 800;
+  line-height: 1.0;
+  letter-spacing: -2px;
+  margin-bottom: 20px;
+}
+
+.hero h1 em {
+  font-style: normal;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero p {
+  font-size: 19px;
+  color: var(--text2);
+  line-height: 1.65;
+  max-width: 520px;
+  font-weight: 400;
+}
+
+/* ── Stats row ── */
+.stats-row {
+  display: flex; gap: 24px; margin-top: 36px;
+}
+
+.stat {
+  display: flex; flex-direction: column;
+}
+
+.stat-num {
+  font-size: 26px; font-weight: 800; line-height: 1;
+  background: linear-gradient(135deg, var(--text) 0%, var(--text2) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-label {
+  font-size: 13px; color: var(--text3); margin-top: 2px;
+}
+
+.stat-divider { width: 1px; background: var(--border); }
+
+/* ── Input box ── */
+.analyze-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 28px;
+  margin-bottom: 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+.analyze-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--blue));
+}
+
+.input-label {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  margin-bottom: 12px; display: block;
+  font-family: var(--mono);
+}
+
+.input-row { display: flex; gap: 10px; }
+
+.repo-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+  padding: 14px 18px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.repo-input::placeholder { color: var(--text3); }
+
+.repo-input:focus {
+  border-color: rgba(77,255,160,0.5);
+  box-shadow: 0 0 0 3px rgba(77,255,160,0.06);
+}
+
+.run-btn {
+  background: var(--accent);
+  color: #060A0E;
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 15px;
+  padding: 14px 28px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+
+.run-btn:hover { background: #5DFFAA; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(77,255,160,0.25); }
+.run-btn:active { transform: translateY(0); }
+.run-btn:disabled { background: var(--surface2); color: var(--text3); cursor: not-allowed; transform: none; box-shadow: none; }
+
+.input-hint {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.input-hint::before { content: '//'; color: var(--accent); }
+
+/* Status & Error */
+.status-bar {
+  display: none; align-items: center; gap: 12px;
+  background: var(--blue-dim);
+  border: 1px solid rgba(77,184,255,0.2);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  margin-top: 14px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--blue);
+}
+
+.spin {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(77,184,255,0.3);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-bar {
+  display: none;
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,80,80,0.25);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  margin-top: 14px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--danger);
+}
+
+/* ── Results ── */
+#results { display: none; animation: fadeUp 0.5s ease; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin: 28px 0 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── Score card ── */
+.score-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 32px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.score-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--blue));
+}
+
+.score-card::after {
+  content: attr(data-score);
+  position: absolute; right: -16px; top: -16px;
+  font-size: 180px; font-weight: 800; opacity: 0.035; line-height: 1;
+  pointer-events: none; font-family: var(--sans);
+  color: var(--text);
+}
+
+.score-ring {
+  width: 110px; height: 110px;
+  border-radius: 50%;
+  border: 3px solid;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.score-ring::before {
+  content: '';
+  position: absolute; inset: -6px;
+  border-radius: 50%;
+  border: 1px solid;
+  opacity: 0.2;
+}
+
+.score-big { font-size: 36px; font-weight: 800; font-family: var(--mono); line-height: 1; }
+.score-denom { font-size: 13px; color: var(--text3); font-family: var(--mono); }
+
+.score-info h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; }
+.score-info .repo-desc { font-size: 15px; color: var(--text2); margin-bottom: 12px; }
+
+.grade-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1.5px solid;
+}
+
+.cap-warn {
+  display: none;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--danger); margin-top: 8px;
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,80,80,0.2);
+  padding: 6px 12px; border-radius: var(--r-sm);
+}
+
+/* ── Dimension grid ── */
+.dim-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+
+.dim-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.dim-card:hover { border-color: var(--border2); background: var(--surface2); }
+
+.dim-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.dim-name { font-size: 14px; font-weight: 700; line-height: 1.3; }
+.dim-pct { font-family: var(--mono); font-size: 20px; font-weight: 700; line-height: 1; }
+.dim-max { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+
+.bar-track {
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1.1s cubic-bezier(0.4,0,0.2,1);
+}
+
+.dim-weight {
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+  text-align: right; margin-top: 4px;
+}
+
+.dim-details {
+  display: none; margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.dim-details.open { display: block; }
+
+.detail-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 13px; padding: 4px 0; line-height: 1.4;
+}
+
+.detail-icon { flex-shrink: 0; margin-top: 1px; font-size: 12px; }
+
+/* ── Recommendations ── */
+.rec-grid { display: flex; flex-direction: column; gap: 3px; }
+
+.rec-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  border-left: 3px solid;
+  padding: 20px 22px;
+}
+
+.rec-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+
+.priority-badge {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.rec-title { font-size: 15px; font-weight: 700; }
+.rec-msg { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; }
+
+.rec-steps { display: flex; flex-direction: column; gap: 4px; }
+
+.rec-step {
+  font-family: var(--mono); font-size: 12px; color: var(--text3);
+  padding-left: 16px; position: relative; line-height: 1.5;
+}
+
+.rec-step::before { content: '→'; position: absolute; left: 0; color: var(--accent); }
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 28px 0;
+  margin-top: 56px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+footer p { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+footer a { color: var(--accent); text-decoration: none; }
+
+/* Colors */
+.col-green { color: var(--accent); border-color: var(--accent); }
+.col-blue  { color: var(--blue);   border-color: var(--blue);   }
+.col-warn  { color: var(--warn);   border-color: var(--warn);   }
+.col-red   { color: var(--danger); border-color: var(--danger); }
+.fill-green { background: var(--accent); }
+.fill-blue  { background: var(--blue);   }
+.fill-warn  { background: var(--warn);   }
+.fill-red   { background: var(--danger); }
+.bg-green { background: var(--accent-dim); }
+.bg-blue  { background: var(--blue-dim);  }
+.bg-warn  { background: var(--warn-dim);  }
+.bg-red   { background: var(--danger-dim); }
+
+@media(max-width:640px) {
+  .input-row { flex-direction: column; }
+  .score-card { grid-template-columns: 1fr; text-align: center; }
+  .score-card::after { display: none; }
+  .dim-grid { grid-template-columns: 1fr; }
+  .stats-row { gap: 16px; }
+  .hero h1 { letter-spacing: -1px; }
+}
 </style>
 </head>
 <body>
 <div class="wrap">
+
   <header>
-    <div class="logo"><div class="dot"></div>DeployWatch</div>
-    <div class="tag">PROD READINESS</div>
-  </header>
-  <section class="hero">
-    <h1>Is your repo<br/><span>prod-ready?</span></h1>
-    <p>Paste any public GitHub repo. We score it across 8 dimensions using live GitHub data and flag exactly what needs fixing.</p>
-  </section>
-  <div class="box">
-    <div class="row">
-      <input type="text" id="url" placeholder="https://github.com/owner/repo" autocomplete="off" spellcheck="false"/>
-      <button class="btn" id="btn" onclick="run()">Analyze</button>
+    <div class="logo">
+      <div class="logo-icon"></div>
+      DeployWatch
     </div>
-    <p class="hint">// activity · documentation · code quality · community · reliability · security · performance · innovation</p>
-    <div class="status" id="status"><div class="spin"></div><span id="stxt">Fetching...</span></div>
-    <div class="err" id="err"></div>
+    <div class="nav-badge">v2.0 · GitHub API</div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-eyebrow">Production Readiness Agent</div>
+    <h1>Is your repo<br/><em>truly prod-ready?</em></h1>
+    <p>Paste any public GitHub URL. We score it live across 8 dimensions and tell you exactly what's missing before you ship.</p>
+
+    <div class="stats-row">
+      <div class="stat"><div class="stat-num">8</div><div class="stat-label">Dimensions scored</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><div class="stat-num">100</div><div class="stat-label">Point scale</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><div class="stat-num">Live</div><div class="stat-label">GitHub data</div></div>
+    </div>
+  </section>
+
+  <div class="analyze-card">
+    <label class="input-label">// github repository url</label>
+    <div class="input-row">
+      <input class="repo-input" type="text" id="url"
+        placeholder="https://github.com/owner/repo"
+        autocomplete="off" spellcheck="false"/>
+      <button class="run-btn" id="btn" onclick="run()">Analyze →</button>
+    </div>
+    <div class="input-hint">activity · docs · code quality · community · reliability · security · performance · innovation</div>
+    <div class="status-bar" id="status"><div class="spin"></div><span id="stxt">Fetching...</span></div>
+    <div class="error-bar" id="err"></div>
   </div>
+
   <div id="results">
-    <div class="lbl">// overall score</div>
-    <div class="score-hero">
-      <div class="score-top">
-        <div class="big-score" id="big-score"><div class="num" id="score-num">--</div><div class="den">/100</div></div>
-        <div class="score-meta">
-          <h2 id="repo-title">--</h2>
-          <p id="repo-desc">--</p>
-          <div class="grade-pill" id="grade-pill">--</div>
+
+    <div class="section-label">Overall Score</div>
+
+    <div class="score-card" id="score-card">
+      <div class="score-ring" id="score-ring">
+        <div class="score-big" id="score-num">--</div>
+        <div class="score-denom">/100</div>
+      </div>
+      <div class="score-info">
+        <h2 id="repo-title">--</h2>
+        <div class="repo-desc" id="repo-desc">--</div>
+        <div class="grade-tag" id="grade-tag">--</div>
+        <div class="cap-warn" id="cap-warn">⚠ Score capped — a critical dimension scored zero</div>
+      </div>
+      <div id="score-meta-right"></div>
+    </div>
+
+    <div class="section-label">8 Dimensions</div>
+    <div class="dim-grid" id="dims"></div>
+
+    <div class="section-label">Recommendations</div>
+    <div class="rec-grid" id="recs"></div>
+
+  </div>
+
+  <footer>
+    <p>DeployWatch — Production Engineering Hackathon 2026</p>
+    <p>Powered by <a href="https://docs.github.com/en/rest" target="_blank">GitHub REST API</a></p>
+  </footer>
+</div>
+
+<script>
+const GH = 'https://api.github.com';
+
+function parseUrl(s) {
+  s = s.trim().replace(/\/$/, '').replace(/\.git$/, '');
+  const m = s.match(/github\.com\/([^\/\s]+\/[^\/\s]+)/);
+  if (m) return m[1];
+  if (/^[\w.-]+\/[\w.-]+$/.test(s)) return s;
+  return null;
+}
+
+async function ghGet(path) {
+  const r = await fetch(GH + path, { headers: { Accept: 'application/vnd.github+json' } });
+  if (!r.ok) throw new Error(`GitHub ${r.status}`);
+  return r.json();
+}
+
+// ── Scoring weights ──────────────────────────────────────────────
+const WEIGHTS  = [0.18, 0.15, 0.15, 0.15, 0.12, 0.10, 0.08, 0.07];
+const DIM_NAMES = [
+  'Activity & Maintenance',
+  'Documentation Quality',
+  'Code Quality',
+  'Community Engagement',
+  'Reliability & Testing',
+  'Security & Best Practices',
+  'Performance',
+  'Innovation & Impact',
+];
+
+// ── Score functions ──────────────────────────────────────────────
+function mk(s, g, b) { return { score: Math.min(Math.max(Math.round(s), 0), 100), good: g, bad: b }; }
+
+function scoreActivity(r, commits) {
+  let s = 0, g = [], b = [];
+  const days = (Date.now() - new Date(r.pushed_at)) / 86400000;
+  if (days < 1)   { s += 25; g.push('Committed today — extremely active'); }
+  else if (days < 7)  { s += 18; g.push('Committed this week'); }
+  else if (days < 30) { s += 10; g.push('Committed this month'); }
+  else if (days < 90) { s += 4; b.push(`Last push ${Math.round(days)} days ago`); }
+  else { b.push('No commits in 90+ days — may be abandoned'); }
+
+  if (commits >= 200)     { s += 40; g.push(`Very high activity: ${commits}+ commits`); }
+  else if (commits >= 50) { s += 30; g.push(`Good history: ${commits} commits`); }
+  else if (commits >= 15) { s += 18; g.push(`${commits} commits`); }
+  else { s += 5; b.push(`Very few commits (${commits}) — limited history`); }
+
+  const issues = r.open_issues_count;
+  if (issues === 0)   { s += 35; g.push('Zero open issues — clean backlog'); }
+  else if (issues < 5)  { s += 25; g.push(`Only ${issues} open issues`); }
+  else if (issues < 20) { s += 15; g.push(`${issues} open issues`); }
+  else if (issues < 50) { s += 5; b.push(`${issues} open issues — review backlog`); }
+  else { b.push(`${issues} open issues — backlog out of control`); }
+
+  return mk(s, g, b);
+}
+
+function scoreDoc(r, readme, wiki, pages) {
+  let s = 0, g = [], b = [];
+  if (readme)  { s += 35; g.push('README.md present'); } else b.push('No README — critical missing file');
+  if (r.description) { s += 20; g.push(`Description: "${r.description.slice(0, 50)}${r.description.length > 50 ? '...' : ''}"`); } else b.push('No repo description set');
+  if (wiki)    { s += 20; g.push('GitHub Wiki enabled'); } else b.push('No wiki — consider adding one');
+  if (pages)   { s += 25; g.push('GitHub Pages live'); } else b.push('No GitHub Pages');
+  return mk(s, g, b);
+}
+
+function scoreCode(r, langs) {
+  let s = 0, g = [], b = [];
+  const langList = Object.keys(langs);
+  if (langList.length > 0) { s += 25; g.push(`Primary language: ${langList[0]}`); }
+  if (langList.length > 2) { s += 10; g.push(`Multi-language: ${langList.slice(0,3).join(', ')}`); }
+
+  const kb = r.size;
+  if (kb < 1000)       { s += 25; g.push('Lightweight repo'); }
+  else if (kb < 20000) { s += 18; g.push('Reasonable repo size'); }
+  else if (kb < 100000){ s += 8;  b.push('Large repo — consider cleanup'); }
+  else { b.push('Very large repo — use Git LFS for assets'); }
+
+  if (r.default_branch === 'main') { s += 15; g.push('Modern main branch'); }
+  else { b.push('Still using master — rename to main'); }
+
+  if (r.has_issues)   { s += 15; g.push('Issue tracking enabled'); }
+  if (r.has_projects) { s += 10; g.push('Project boards enabled'); } else b.push('No project boards');
+  return mk(s, g, b);
+}
+
+function scoreCommunity(r) {
+  let s = 0, g = [], b = [];
+  const stars = r.stargazers_count;
+  if (stars >= 10000) { s += 40; g.push(`${stars.toLocaleString()} stars — hugely popular`); }
+  else if (stars >= 1000) { s += 32; g.push(`${stars.toLocaleString()} stars`); }
+  else if (stars >= 100)  { s += 22; g.push(`${stars} stars — growing`); }
+  else if (stars >= 10)   { s += 12; g.push(`${stars} stars`); }
+  else if (stars > 0)     { s += 5;  g.push(`${stars} stars`); }
+  else { b.push('0 stars — promote the project'); }
+
+  const forks = r.forks_count;
+  if (forks >= 500) { s += 30; g.push(`${forks} forks`); }
+  else if (forks >= 50) { s += 22; g.push(`${forks} forks`); }
+  else if (forks >= 5)  { s += 12; g.push(`${forks} forks`); }
+  else { b.push('Very few forks — not widely used yet'); }
+
+  if (r.watchers_count > 100) { s += 20; g.push(`${r.watchers_count} watchers`); }
+  else if (r.watchers_count > 10) { s += 12; g.push(`${r.watchers_count} watchers`); }
+  else { b.push('Low watchers — limited community interest'); }
+
+  if (r.subscribers_count > 5) { s += 10; g.push('Active subscriber base'); }
+  return mk(s, g, b);
+}
+
+function scoreReliability(r, ci) {
+  let s = 0, g = [], b = [];
+  if (ci) { s += 45; g.push('CI/CD pipeline found (.github/workflows)'); }
+  else    { b.push('No CI/CD — add GitHub Actions for automated testing'); }
+
+  if (!r.archived)  { s += 20; g.push('Repo is actively maintained'); }
+  else { b.push('Repo is archived — read only'); }
+
+  if (r.has_issues) { s += 15; g.push('Issue tracking enabled'); }
+
+  const issues = r.open_issues_count;
+  if (issues === 0)   { s += 20; g.push('No open issues'); }
+  else if (issues < 10) { s += 12; }
+  else if (issues < 30) { s += 5; b.push(`${issues} open issues — needs triage`); }
+  else { b.push(`${issues} open issues — backlog not managed`); }
+
+  return mk(s, g, b);
+}
+
+function scoreSecurity(r, sec) {
+  let s = 0, g = [], b = [];
+  if (sec)       { s += 40; g.push('SECURITY.md present'); }
+  else           { b.push('No SECURITY.md — add a vulnerability reporting policy'); }
+  if (r.license) { s += 35; g.push(`License: ${r.license.spdx_id}`); }
+  else           { b.push('No license — users cannot legally use the code'); }
+  if (!r.archived)     { s += 15; g.push('Actively maintained'); }
+  if (r.private === false) { s += 10; g.push('Open source'); }
+  return mk(s, g, b);
+}
+
+function scorePerf(r) {
+  let s = 0, g = [], b = [];
+  const kb = r.size;
+  if (kb < 500)        { s += 40; g.push('Extremely lean codebase'); }
+  else if (kb < 5000)  { s += 30; g.push('Lightweight repo'); }
+  else if (kb < 50000) { s += 18; g.push('Reasonable size'); }
+  else { b.push('Large repo — consider Git LFS or splitting'); }
+
+  if (r.forks_count > 10)    { s += 25; g.push('Widely forked'); }
+  if (r.stargazers_count > 20) { s += 20; g.push('Visible to the community'); }
+  if (r.open_issues_count < 5) { s += 15; g.push('Low issue overhead'); }
+  else { b.push('High issue count affects maintainability'); }
+  return mk(s, g, b);
+}
+
+function scoreInnovation(r, topics) {
+  let s = 0, g = [], b = [];
+  const ageDays = (Date.now() - new Date(r.created_at)) / 86400000;
+  if (ageDays < 30)   { s += 30; g.push('Brand new project'); }
+  else if (ageDays < 180) { s += 22; g.push('Fresh growing project'); }
+  else if (ageDays < 730) { s += 14; g.push('Maturing project'); }
+  else { s += 8; g.push(`Established: ${Math.round(ageDays/365 * 10)/10}yr old`); }
+
+  if (topics.length >= 5) { s += 30; g.push(`Well tagged: ${topics.slice(0,4).join(', ')}...`); }
+  else if (topics.length > 0) { s += 18; g.push(`Topics: ${topics.join(', ')}`); }
+  else { b.push('No topic tags — makes it hard to discover'); }
+
+  const stars = r.stargazers_count;
+  if (stars >= 500) { s += 40; g.push('Strong traction'); }
+  else if (stars >= 50) { s += 28; g.push('Gaining visibility'); }
+  else if (stars >= 10) { s += 15; g.push('Early traction'); }
+  else { b.push('Limited visibility — needs promotion'); }
+
+  return mk(s, g, b);
+}
+
+// ── Grade & color ────────────────────────────────────────────────
+function getGrade(s) {
+  if (s >= 85) return { letter: 'A+', label: 'Production Ready', col: 'green' };
+  if (s >= 75) return { letter: 'A',  label: 'Almost There',     col: 'green' };
+  if (s >= 65) return { letter: 'B',  label: 'Needs Attention',  col: 'blue'  };
+  if (s >= 50) return { letter: 'C',  label: 'Improvements Needed', col: 'warn' };
+  if (s >= 35) return { letter: 'D',  label: 'Not Production Safe', col: 'warn' };
+  return { letter: 'F', label: 'Critical Issues', col: 'red' };
+}
+
+function dimColor(s) {
+  if (s >= 75) return 'green';
+  if (s >= 55) return 'blue';
+  if (s >= 35) return 'warn';
+  return 'red';
+}
+
+// ── Render ───────────────────────────────────────────────────────
+function render(repo, dims) {
+  document.getElementById('results').style.display = 'block';
+
+  const overall = Math.round(dims.reduce((a, d, i) => a + d.score * WEIGHTS[i], 0));
+  const capped  = dims.some(d => d.score === 0);
+  const final   = capped ? Math.min(overall, 60) : overall;
+  const { letter, label, col } = getGrade(final);
+
+  // Score ring
+  document.getElementById('score-card').setAttribute('data-score', final);
+  const ring = document.getElementById('score-ring');
+  ring.className = `score-ring col-${col}`;
+  document.getElementById('score-num').textContent = final;
+
+  // Info
+  document.getElementById('repo-title').textContent = repo.full_name;
+  document.getElementById('repo-desc').textContent  = repo.description || 'No description provided';
+
+  const gt = document.getElementById('grade-tag');
+  gt.textContent = `${letter}  ${label}`;
+  gt.className = `grade-tag col-${col} bg-${col}`;
+
+  if (capped) document.getElementById('cap-warn').style.display = 'block';
+
+  // Dimensions
+  const dimsEl = document.getElementById('dims');
+  dimsEl.innerHTML = '';
+  dims.forEach((d, i) => {
+    const dc = dimColor(d.score);
+    const pct = Math.round(WEIGHTS[i] * 100);
+    const card = document.createElement('div');
+    card.className = 'dim-card';
+    card.innerHTML = `
+      <div class="dim-header">
+        <div class="dim-name">${DIM_NAMES[i]}</div>
+        <div>
+          <div class="dim-pct col-${dc}">${d.score}</div>
+          <div class="dim-max">/100</div>
         </div>
       </div>
-    </div>
-    <div class="lbl">// 8 dimensions</div>
-    <div class="dims" id="dims"></div>
-    <div class="lbl">// recommendations</div>
-    <div class="recs" id="recs"></div>
-  </div>
-  <footer><p>DeployWatch — Production Engineering Hackathon</p><p style="color:var(--accent)">GitHub API</p></footer>
-</div>
-<script>
-const GH='https://api.github.com';
-function parseUrl(s){s=s.trim().replace(/\/$/,'');const m=s.match(/github\.com\/([^\/]+\/[^\/]+)/);if(m)return m[1];if(s.match(/^[\w.-]+\/[\w.-]+$/))return s;return null;}
-async function gh(p){const r=await fetch(GH+p,{headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(`GitHub ${r.status}`);return r.json();}
-const WEIGHTS=[0.18,0.15,0.15,0.15,0.12,0.10,0.08,0.07];
-const NAMES=['Activity & Maintenance','Documentation Quality','Code Quality','Community Engagement','Reliability & Testing','Security & Best Practices','Performance','Innovation & Impact'];
-function col(s){return s>=75?'green':s>=50?'yellow':s>=30?'orange':'red';}
-function grade(s){if(s>=80)return['A','Excellent — production ready'];if(s>=65)return['B','Good — minor improvements needed'];if(s>=50)return['C','Fair — significant gaps'];if(s>=35)return['D','Poor — major issues'];return['F','Critical — urgent action required'];}
-function dim(score,good,bad){return{score:Math.min(score,100),good,bad};}
-
-function scoreActivity(r,commits){
-  let s=0,g=[],b=[];
-  const days=(Date.now()-new Date(r.pushed_at))/86400000;
-  if(days<1){s+=30;g.push('Committed today');}else if(days<7){s+=22;g.push('Committed this week');}else if(days<30){s+=12;g.push('Committed this month');}else b.push('No commits in 30+ days');
-  if(commits>=100){s+=40;g.push(`${commits} commits`);}else if(commits>=20){s+=25;g.push(`${commits} commits`);}else{s+=10;b.push(`Low history: ${commits} commits`);}
-  if(r.open_issues_count<10){s+=30;g.push('Clean issue backlog');}else if(r.open_issues_count<50){s+=15;}else b.push(`${r.open_issues_count} open issues`);
-  return dim(s,g,b);
-}
-function scoreDoc(r,readme,wiki,pages){
-  let s=0,g=[],b=[];
-  if(readme){s+=40;g.push('README.md exists');}else b.push('No README — add one immediately');
-  if(r.description){s+=20;g.push('Description set');}else b.push('No repo description');
-  if(wiki){s+=20;g.push('Wiki enabled');}else b.push('No wiki');
-  if(pages){s+=20;g.push('GitHub Pages active');}else b.push('No GitHub Pages');
-  return dim(s,g,b);
-}
-function scoreCode(r,langs){
-  let s=0,g=[],b=[];
-  if(Object.keys(langs).length>0){s+=30;g.push(`Primary: ${Object.keys(langs)[0]}`);}
-  if(r.size<50000){s+=20;g.push('Lean repo size');}else if(r.size<200000){s+=10;}else b.push('Large repo — consider splitting');
-  if(r.default_branch==='main'){s+=20;g.push('Uses main branch');}
-  if(r.has_issues){s+=15;g.push('Issue tracking on');}
-  if(r.has_projects){s+=15;g.push('Projects board enabled');}else b.push('No project board');
-  return dim(s,g,b);
-}
-function scoreCommunity(r){
-  let s=0,g=[],b=[];
-  if(r.stargazers_count>1000){s+=40;g.push(`${r.stargazers_count} stars`);}else if(r.stargazers_count>100){s+=25;g.push(`${r.stargazers_count} stars`);}else if(r.stargazers_count>0){s+=10;g.push(`${r.stargazers_count} stars`);}else b.push('0 stars — promote the project');
-  if(r.forks_count>50){s+=30;g.push(`${r.forks_count} forks`);}else if(r.forks_count>5){s+=15;g.push(`${r.forks_count} forks`);}else b.push('Very few forks');
-  if(r.watchers_count>10){s+=20;g.push(`${r.watchers_count} watchers`);}else b.push('Low watchers');
-  if(r.network_count>1){s+=10;g.push('Has network forks');}
-  return dim(s,g,b);
-}
-function scoreReliability(r,ci){
-  let s=0,g=[],b=[];
-  if(ci){s+=40;g.push('CI/CD pipeline found');}else b.push('No CI/CD — add GitHub Actions');
-  if(!r.archived){s+=20;g.push('Repo is active');}
-  if(r.has_issues){s+=20;g.push('Issue tracking on');}
-  if(r.open_issues_count===0){s+=20;g.push('No open issues');}else if(r.open_issues_count<20){s+=10;}else b.push(`${r.open_issues_count} unresolved issues`);
-  return dim(s,g,b);
-}
-function scoreSecurity(r,sec){
-  let s=0,g=[],b=[];
-  if(sec){s+=40;g.push('SECURITY.md found');}else b.push('No SECURITY.md — add one');
-  if(r.license){s+=30;g.push(`License: ${r.license.spdx_id}`);}else b.push('No license — add one');
-  if(!r.archived){s+=20;g.push('Actively maintained');}
-  s+=10;
-  return dim(s,g,b);
-}
-function scorePerf(r){
-  let s=0,g=[],b=[];
-  if(r.size<5000){s+=40;g.push('Very small repo');}else if(r.size<50000){s+=25;g.push('Reasonable size');}else b.push('Large repo — use Git LFS');
-  if(r.forks_count>0){s+=20;g.push('Used by others');}
-  if(r.stargazers_count>10){s+=20;g.push('Visible project');}
-  if(r.open_issues_count<5){s+=20;g.push('Low issue debt');}
-  return dim(s,g,b);
-}
-function scoreInnovation(r,topics){
-  let s=0,g=[],b=[];
-  const age=(Date.now()-new Date(r.created_at))/86400000;
-  if(age<90){s+=30;g.push('Fresh new project');}else if(age<365){s+=20;g.push('Growing project');}else{s+=10;g.push('Established project');}
-  if(topics.length>3){s+=30;g.push(`${topics.length} topic tags`);}else if(topics.length>0){s+=15;g.push(`${topics.length} topics`);}else b.push('No topic tags — add some');
-  if(r.stargazers_count>50){s+=40;g.push('Gaining traction');}else if(r.stargazers_count>5){s+=20;}else b.push('Low visibility');
-  return dim(s,g,b);
-}
-
-const STEPS={
-  'README':['Create README.md with description','Add installation and usage instructions','Include screenshots or a demo GIF'],
-  'CI/CD':['Add .github/workflows/ci.yml','Set up tests on push','Add build badge to README'],
-  'license':['Add a LICENSE file (MIT is most common)','Use choosealicense.com to pick one'],
-  'SECURITY':['Create SECURITY.md with reporting guide','Enable Dependabot in repo settings'],
-  'stars':['Share on Twitter/LinkedIn','Post on Reddit r/programming','Submit to Hacker News Show HN'],
-  'topics':['Go to repo Settings → add relevant topics'],
-  'description':['Click ⚙️ next to About on repo page','Write a one-line summary'],
-};
-function getSteps(msg){for(const[k,v]of Object.entries(STEPS)){if(msg.toLowerCase().includes(k.toLowerCase()))return v;}return[];}
-
-function render(repo,dims){
-  document.getElementById('results').style.display='block';
-  const overall=Math.round(dims.reduce((a,d,i)=>a+d.score*WEIGHTS[i],0));
-  const [g,gl]=grade(overall);const c=col(overall);
-  document.getElementById('score-num').textContent=overall;
-  document.getElementById('big-score').className='big-score c-'+c;
-  document.getElementById('repo-title').textContent=repo.full_name;
-  document.getElementById('repo-desc').textContent=repo.description||'No description';
-  const gp=document.getElementById('grade-pill');gp.textContent=`${g} — ${gl}`;gp.className='grade-pill c-'+c;
-
-  const de=document.getElementById('dims');de.innerHTML='';
-  dims.forEach((d,i)=>{
-    const dc=col(d.score);
-    const el=document.createElement('div');el.className='dim';
-    el.innerHTML=`<div class="dim-top"><div class="dim-name">${NAMES[i]}</div><div class="dim-score c-${dc}">${d.score}/100</div></div><div class="track"><div class="fill f-${dc}" id="f${i}" style="width:0%"></div></div><div class="dim-detail" id="dd${i}">${d.good.map(x=>`<div class="detail-item good">${x}</div>`).join('')}${d.bad.map(x=>`<div class="detail-item bad">${x}</div>`).join('')}</div>`;
-    el.onclick=()=>document.getElementById('dd'+i).classList.toggle('open');
-    de.appendChild(el);
-    setTimeout(()=>{document.getElementById('f'+i).style.width=d.score+'%';},100+i*60);
+      <div class="bar-track"><div class="bar-fill fill-${dc}" id="bf${i}" style="width:0%"></div></div>
+      <div class="dim-weight">Weight: ${pct}%</div>
+      <div class="dim-details" id="dd${i}">
+        ${d.good.map(x => `<div class="detail-row"><span class="detail-icon col-green">✓</span><span style="color:var(--text2)">${x}</span></div>`).join('')}
+        ${d.bad.map(x  => `<div class="detail-row"><span class="detail-icon col-warn">!</span><span style="color:var(--text2)">${x}</span></div>`).join('')}
+      </div>`;
+    card.onclick = () => document.getElementById('dd' + i).classList.toggle('open');
+    dimsEl.appendChild(card);
+    setTimeout(() => { document.getElementById('bf' + i).style.width = d.score + '%'; }, 80 + i * 70);
   });
 
-  const re=document.getElementById('recs');re.innerHTML='';
-  const allBad=dims.flatMap((d,i)=>d.bad.map(b=>({dim:NAMES[i],msg:b,score:d.score}))).sort((a,b)=>a.score-b.score);
-  allBad.slice(0,6).forEach(item=>{
-    const p=item.score<40?['high','var(--danger)']:item.score<65?['medium','var(--warn)']:['low','var(--accent2)'];
-    const steps=getSteps(item.msg);
-    const el=document.createElement('div');el.className='rec';el.style.borderLeftColor=p[1];
-    el.innerHTML=`<div class="rec-top"><div class="rec-priority" style="color:${p[1]};border-color:${p[1]}">${p[0]} priority</div><div class="rec-title">${item.dim}</div></div><div class="rec-body">${item.msg}</div>${steps.length?`<div class="rec-steps">${steps.map(s=>`<div class="rec-step">${s}</div>`).join('')}</div>`:''}`;
-    re.appendChild(el);
+  // Recommendations
+  const recsEl = document.getElementById('recs');
+  recsEl.innerHTML = '';
+  const allBad = dims.flatMap((d, i) => d.bad.map(msg => ({ dim: DIM_NAMES[i], msg, score: d.score })));
+  allBad.sort((a, b) => a.score - b.score);
+
+  allBad.slice(0, 7).forEach(item => {
+    const isHigh = item.score < 40;
+    const isMed  = item.score >= 40 && item.score < 65;
+    const p  = isHigh ? 'high'   : isMed ? 'medium' : 'low';
+    const pc = isHigh ? 'red'    : isMed ? 'warn'   : 'blue';
+    const steps = getRec(item.msg);
+    const el = document.createElement('div');
+    el.className = 'rec-card';
+    el.style.borderLeftColor = `var(--${pc === 'red' ? 'danger' : pc === 'warn' ? 'warn' : 'blue'})`;
+    el.innerHTML = `
+      <div class="rec-header">
+        <div class="priority-badge col-${pc} bg-${pc}">${p} priority</div>
+        <div class="rec-title">${item.dim}</div>
+      </div>
+      <div class="rec-msg">${item.msg}</div>
+      ${steps.length ? `<div class="rec-steps">${steps.map(s => `<div class="rec-step">${s}</div>`).join('')}</div>` : ''}`;
+    recsEl.appendChild(el);
   });
 }
 
-function showStatus(m){document.getElementById('status').style.display='flex';document.getElementById('stxt').textContent=m;}
-function hideStatus(){document.getElementById('status').style.display='none';}
-function showErr(m){hideStatus();const e=document.getElementById('err');e.style.display='block';e.textContent='// error: '+m;document.getElementById('btn').disabled=false;}
+function getRec(msg) {
+  const m = msg.toLowerCase();
+  if (m.includes('readme'))      return ['Create README.md with a clear description', 'Add installation and usage instructions', 'Include a demo screenshot or GIF'];
+  if (m.includes('ci/cd'))       return ['Create .github/workflows/ci.yml', 'Run tests automatically on every push', 'Add a build status badge to README'];
+  if (m.includes('license'))     return ['Add a LICENSE file (MIT recommended)', 'Use choosealicense.com to pick the right one'];
+  if (m.includes('security'))    return ['Create SECURITY.md with a reporting guide', 'Enable Dependabot in repo Settings → Security'];
+  if (m.includes('star'))        return ['Share on Twitter/X and LinkedIn', 'Post on Reddit r/programming or r/github', 'Submit to Hacker News as Show HN'];
+  if (m.includes('topic'))       return ['Go to repo page → click ⚙️ next to About', 'Add 5-10 relevant topics (language, use case, stack)'];
+  if (m.includes('description')) return ['Click ⚙️ next to About on the repo main page', 'Write a sharp one-liner about what the project does'];
+  if (m.includes('wiki'))        return ['Enable Wiki in repo Settings', 'Document architecture decisions and guides there'];
+  if (m.includes('pages'))       return ['Enable GitHub Pages in repo Settings', 'Create a landing page or documentation site'];
+  if (m.includes('branch'))      return ['Rename master to main: git branch -m master main', 'Push and update the default branch in Settings'];
+  if (m.includes('fork'))        return ['Promote the project to get external contributors', 'Write a CONTRIBUTING.md to guide new contributors'];
+  return [];
+}
 
-async function run(){
-  const input=document.getElementById('url').value;
-  const slug=parseUrl(input);
-  if(!slug){showErr('Enter a valid GitHub URL like https://github.com/owner/repo');return;}
-  document.getElementById('err').style.display='none';
-  document.getElementById('results').style.display='none';
-  document.getElementById('btn').disabled=true;
-  try{
-    showStatus('Fetching repo info...');
-    const repo=await gh(`/repos/${slug}`);
-    showStatus('Fetching commits & languages...');
-    const[commits,langs]= await Promise.all([gh(`/repos/${slug}/commits?per_page=100`).catch(()=>[]),gh(`/repos/${slug}/languages`).catch(()=>({}))]);
-    showStatus('Checking docs & CI...');
-    const[readme,pages,ci,sec]=await Promise.all([
-      gh(`/repos/${slug}/contents/README.md`).then(()=>true).catch(()=>false),
-      gh(`/repos/${slug}/pages`).then(()=>true).catch(()=>false),
-      gh(`/repos/${slug}/contents/.github/workflows`).then(()=>true).catch(()=>false),
-      gh(`/repos/${slug}/contents/SECURITY.md`).then(()=>true).catch(()=>false),
+// ── UI helpers ───────────────────────────────────────────────────
+function showStatus(msg) {
+  document.getElementById('status').style.display = 'flex';
+  document.getElementById('stxt').textContent = msg;
+}
+
+function hideStatus() { document.getElementById('status').style.display = 'none'; }
+
+function showErr(msg) {
+  hideStatus();
+  const e = document.getElementById('err');
+  e.style.display = 'block';
+  e.textContent = '// error: ' + msg;
+  document.getElementById('btn').disabled = false;
+}
+
+// ── Main ─────────────────────────────────────────────────────────
+async function run() {
+  const input = document.getElementById('url').value;
+  const slug  = parseUrl(input);
+  if (!slug) { showErr('Enter a valid GitHub URL — e.g. https://github.com/owner/repo'); return; }
+
+  document.getElementById('err').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('cap-warn').style.display = 'none';
+  document.getElementById('btn').disabled = true;
+
+  try {
+    showStatus('Fetching repo info from GitHub...');
+    const repo = await ghGet(`/repos/${slug}`);
+
+    showStatus('Loading commits and languages...');
+    const [commits, langs] = await Promise.all([
+      ghGet(`/repos/${slug}/commits?per_page=100`).catch(() => []),
+      ghGet(`/repos/${slug}/languages`).catch(() => ({})),
     ]);
+
+    showStatus('Checking docs, CI, and security...');
+    const [readme, pages, ci, sec] = await Promise.all([
+      ghGet(`/repos/${slug}/contents/README.md`).then(() => true).catch(() => false),
+      ghGet(`/repos/${slug}/pages`).then(() => true).catch(() => false),
+      ghGet(`/repos/${slug}/contents/.github/workflows`).then(() => true).catch(() => false),
+      ghGet(`/repos/${slug}/contents/SECURITY.md`).then(() => true).catch(() => false),
+    ]);
+
     showStatus('Calculating scores...');
-    const dims=[
-      scoreActivity(repo,commits.length),
-      scoreDoc(repo,readme,repo.has_wiki,pages),
-      scoreCode(repo,langs),
+    const dims = [
+      scoreActivity(repo, commits.length),
+      scoreDoc(repo, readme, repo.has_wiki, pages),
+      scoreCode(repo, langs),
       scoreCommunity(repo),
-      scoreReliability(repo,ci),
-      scoreSecurity(repo,sec),
+      scoreReliability(repo, ci),
+      scoreSecurity(repo, sec),
       scorePerf(repo),
-      scoreInnovation(repo,repo.topics||[]),
+      scoreInnovation(repo, repo.topics || []),
     ];
-    hideStatus();document.getElementById('btn').disabled=false;
-    render(repo,dims);
-  }catch(e){
-    if(e.message.includes('404'))showErr('Repo not found — make sure it\'s public');
-    else if(e.message.includes('403'))showErr('GitHub rate limit hit — wait a minute and try again');
+
+    hideStatus();
+    document.getElementById('btn').disabled = false;
+    render(repo, dims);
+
+  } catch (e) {
+    if (e.message.includes('404')) showErr('Repo not found — make sure it\'s public and the URL is correct');
+    else if (e.message.includes('403')) showErr('GitHub API rate limit hit — wait 60 seconds and try again');
     else showErr(e.message);
   }
 }
-document.getElementById('url').addEventListener('keydown',e=>{if(e.key==='Enter')run();});
+
+document.getElementById('url').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
 </script>
 </body>
 </html>
