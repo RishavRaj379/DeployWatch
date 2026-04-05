@@ -257,7 +257,28 @@ nav {
   background: rgba(255,255,255,0.04); border: 1px solid var(--border);
   color: var(--t3);
 }
-  
+
+/* Token input row */
+.token-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px;
+  background: rgba(255,176,32,0.05);
+  border: 1px solid rgba(255,176,32,0.15);
+  border-radius: 8px; padding: 10px 14px;
+}
+
+.token-icon { font-size: 14px; flex-shrink: 0; }
+.token-label { font-size: 13px; color: var(--amber); flex: 1; }
+
+.token-input {
+  background: var(--bg); border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--text); font-family: var(--mono); font-size: 12px;
+  padding: 6px 12px; outline: none; width: 240px;
+  transition: border-color 0.2s;
+}
+.token-input::placeholder { color: var(--t3); }
+.token-input:focus { border-color: rgba(255,176,32,0.4); }
+
 /* Status / error */
 .status-row {
   display: none; align-items: center; gap: 12px;
@@ -593,7 +614,13 @@ footer a { color: var(--green); text-decoration: none; }
   <div class="analyze-box">
     <div class="analyze-title">ANALYZE A REPOSITORY</div>
     <div class="analyze-sub">Paste any public GitHub URL and hit Analyze</div>
-    
+
+    <div class="token-row">
+      <span class="token-icon">🔑</span>
+      <span class="token-label">GitHub Token (optional — avoids rate limits)</span>
+      <input class="token-input" type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx"/>
+    </div>
+
     <div class="input-group">
       <input class="repo-input" type="text" id="url" placeholder="https://github.com/owner/repo" autocomplete="off" spellcheck="false"/>
       <button class="run-btn" id="btn" onclick="analyze()">
@@ -717,9 +744,14 @@ function parseUrl(s) {
 }
 
 // ── GitHub fetch ────────────────────────────────────────────────
-async function gh(path) {
-  const headers = { Accept: 'application/vnd.github+json' };
-  if (GH_TOKEN) headers['Authorization'] = `Bearer ${GH_TOKEN}`;
+async function ghGet(path) {
+  const r = await fetch(GH + path, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${GH_TOKEN}`,
+    }
+  });
+  if (token) headers['Authorization'] = `Bearer ${token}`;
   const r = await fetch(GH + path, { headers });
   if (!r.ok) throw new Error(`GitHub ${r.status}`);
   return r.json();
