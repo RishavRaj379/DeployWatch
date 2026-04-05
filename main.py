@@ -1,16 +1,10 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from flask import Flask, jsonify
 
-app = FastAPI()
+app = Flask(__name__)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.get("/health")
+def health():
+    return jsonify({"status": "ok"}), 200
 
-@app.get("/")
-def home():
-    return {"status": "DeployWatch API running 🚀"}
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
