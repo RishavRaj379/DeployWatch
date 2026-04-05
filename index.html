@@ -4,716 +4,774 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>DeployWatch — Production Readiness Agent</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Cabinet+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet"/>
 <style>
+  :root {
+    --bg: #0a0a0a; --surface: #111; --border: #1e1e1e;
+    --accent: #00ff87; --accent2: #00c9ff; --warn: #ffb800; --danger: #ff4444;
+    --text: #f0f0f0; --muted: #555;
+    --mono: 'Space Mono', monospace; --display: 'Syne', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--display); min-height: 100vh; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,255,135,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,135,0.025) 1px,transparent 1px); background-size: 48px 48px; pointer-events: none; z-index: 0; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+  header { padding: 36px 0 0; display: flex; align-items: center; justify-content: space-between; }
+  .logo { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 800; }
+  .dot { width: 9px; height: 9px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 10px var(--accent)} 50%{box-shadow:0 0 24px var(--accent)} }
+  .tag { font-family: var(--mono); font-size: 10px; padding: 4px 10px; border: 1px solid var(--border); color: var(--muted); letter-spacing: 1.5px; }
+  .hero { padding: 52px 0 36px; }
+  .hero h1 { font-size: clamp(38px,6.5vw,68px); font-weight: 800; line-height: 0.95; letter-spacing: -2.5px; margin-bottom: 16px; }
+  .hero h1 span { background: linear-gradient(90deg,var(--accent),var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .hero p { font-size: 16px; color: var(--muted); line-height: 1.65; max-width: 480px; }
+  .box { background: var(--surface); border: 1px solid var(--border); padding: 26px; margin-bottom: 28px; position: relative; }
+  .box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .row { display: flex; gap: 8px; }
+  input[type=text] { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 13px; padding: 12px 14px; outline: none; transition: border-color 0.2s; }
+  input[type=text]::placeholder { color: var(--muted); }
+  input[type=text]:focus { border-color: rgba(0,255,135,0.4); }
+  .btn { background: var(--accent); color: #000; border: none; font-family: var(--display); font-weight: 700; font-size: 13px; padding: 12px 24px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .btn:hover { background: #00e87a; }
+  .btn:disabled { background: #1a1a1a; color: var(--muted); cursor: not-allowed; }
+  .hint { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 10px; }
+  .status { display: none; align-items: center; gap: 10px; border: 1px solid var(--border); border-left: 2px solid var(--accent2); padding: 12px 14px; margin-top: 12px; font-family: var(--mono); font-size: 12px; color: var(--accent2); }
+  .spin { width: 12px; height: 12px; border: 1.5px solid var(--border); border-top-color: var(--accent2); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .err { display: none; border: 1px solid rgba(255,68,68,0.3); background: rgba(255,68,68,0.05); padding: 12px 14px; margin-top: 12px; font-family: var(--mono); font-size: 12px; color: var(--danger); }
+  #results { display: none; animation: up 0.5s ease; }
+  @keyframes up { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .score-hero { background: var(--surface); border: 1px solid var(--border); padding: 28px; margin-bottom: 2px; position: relative; overflow: hidden; }
+  .score-hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg,var(--accent),var(--accent2)); }
+  .score-top { display: flex; align-items: center; gap: 24px; }
+  .big-score { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 88px; height: 88px; border-radius: 50%; border: 2px solid; flex-shrink: 0; }
+  .big-score .num { font-size: 26px; font-weight: 800; font-family: var(--mono); line-height: 1; }
+  .big-score .den { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+  .score-meta h2 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .score-meta p { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .grade-pill { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 4px 12px; letter-spacing: 1.5px; text-transform: uppercase; border: 1px solid; }
+  .dims { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  .dim { background: var(--bg); border: 1px solid var(--border); padding: 14px 16px; cursor: pointer; transition: border-color 0.2s; }
+  .dim:hover { border-color: #2a2a2a; }
+  .dim-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .dim-name { font-size: 12px; font-weight: 600; }
+  .dim-score { font-family: var(--mono); font-size: 11px; }
+  .track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 2px; transition: width 1s cubic-bezier(0.4,0,0.2,1); }
+  .dim-detail { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .dim-detail.open { display: block; }
+  .detail-item { font-family: var(--mono); font-size: 10px; padding: 2px 0 2px 14px; position: relative; line-height: 1.5; }
+  .detail-item.good { color: var(--accent); }
+  .detail-item.good::before { content: '✓'; position: absolute; left: 0; }
+  .detail-item.bad { color: var(--warn); }
+  .detail-item.bad::before { content: '!'; position: absolute; left: 0; }
+  .recs { margin-top: 2px; }
+  .rec { background: var(--surface); border: 1px solid var(--border); border-left: 2px solid; padding: 16px 18px; margin-bottom: 2px; }
+  .rec-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .rec-priority { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; border: 1px solid; }
+  .rec-title { font-size: 13px; font-weight: 700; }
+  .rec-body { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .rec-steps { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+  .rec-step { font-family: var(--mono); font-size: 10px; color: var(--muted); padding-left: 14px; position: relative; }
+  .rec-step::before { content: '→'; position: absolute; left: 0; color: var(--accent); }
+  .lbl { font-family: var(--mono); font-size: 9px; letter-spacing: 2.5px; color: var(--muted); text-transform: uppercase; margin: 20px 0 6px; }
+  footer { border-top: 1px solid var(--border); padding: 24px 0; margin-top: 48px; display: flex; justify-content: space-between; }
+  footer p { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .c-green{color:var(--accent);border-color:var(--accent)} .c-yellow{color:var(--warn);border-color:var(--warn)} .c-orange{color:#ff8c00;border-color:#ff8c00} .c-red{color:var(--danger);border-color:var(--danger)}
+  .f-green{background:var(--accent)} .f-yellow{background:var(--warn)} .f-orange{background:#ff8c00} .f-red{background:var(--danger)}
+  @media(max-width:600px){.row{flex-direction:column}.dims{grid-template-columns:1fr}.score-top{flex-direction:column}}
 :root {
-  --bg: #03050A;
-  --s1: #080C14;
-  --s2: #0C1120;
-  --s3: #111827;
-  --border: #1A2235;
-  --border2: #243047;
-  --green: #00E87A;
-  --green2: #00FF88;
-  --blue: #38BEFF;
-  --amber: #FFB020;
-  --red: #FF4545;
-  --purple: #A78BFA;
-  --text: #E2E8F5;
-  --t2: #8899B4;
-  --t3: #4A5568;
-  --display: 'Bebas Neue', sans-serif;
-  --body: 'DM Sans', sans-serif;
-  --mono: 'DM Mono', monospace;
+  --bg: #080B10;
+  --surface: #0E1219;
+  --surface2: #141820;
+  --border: #1E2530;
+  --border2: #252D3A;
+  --accent: #4DFFA0;
+  --accent-dim: rgba(77,255,160,0.12);
+  --blue: #4DB8FF;
+  --blue-dim: rgba(77,184,255,0.12);
+  --warn: #FFB830;
+  --warn-dim: rgba(255,184,48,0.12);
+  --danger: #FF5050;
+  --danger-dim: rgba(255,80,80,0.12);
+  --purple: #B87FFF;
+  --text: #E8EDF5;
+  --text2: #8892A4;
+  --text3: #505A6B;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Cabinet Grotesk', sans-serif;
+  --r: 10px;
+  --r-sm: 6px;
 }
 
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-html { scroll-behavior: smooth; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--body);
+  font-family: var(--sans);
+  min-height: 100vh;
   font-size: 16px;
   line-height: 1.6;
-  min-height: 100vh;
-  overflow-x: hidden;
 }
 
-/* Background effects */
-.bg-effects {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  overflow: hidden;
+/* Subtle grid */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(77,255,160,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(77,255,160,0.018) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none; z-index: 0;
 }
 
-.orb {
-  position: absolute; border-radius: 50%;
-  filter: blur(80px); opacity: 0.12;
-}
-.orb-1 { width: 600px; height: 600px; background: var(--green); top: -200px; left: -100px; animation: drift1 18s ease-in-out infinite; }
-.orb-2 { width: 500px; height: 500px; background: var(--blue); top: 200px; right: -150px; animation: drift2 22s ease-in-out infinite; }
-.orb-3 { width: 400px; height: 400px; background: var(--purple); bottom: -100px; left: 30%; animation: drift3 16s ease-in-out infinite; }
-
-@keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(60px,40px)} }
-@keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-40px,60px)} }
-@keyframes drift3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,-50px)} }
-
-.grid-overlay {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image: linear-gradient(rgba(56,190,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(56,190,255,0.03) 1px, transparent 1px);
-  background-size: 52px 52px;
+/* Glow orbs */
+body::after {
+  content: '';
+  position: fixed;
+  top: -200px; left: 50%;
+  transform: translateX(-50%);
+  width: 800px; height: 500px;
+  background: radial-gradient(ellipse, rgba(77,255,160,0.04) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
 }
 
-/* Layout */
-.page { position: relative; z-index: 1; }
-.wrap { max-width: 960px; margin: 0 auto; padding: 0 32px; }
+.wrap { max-width: 900px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
 
-/* ── NAV ── */
-nav {
-  padding: 24px 0;
+/* ── Header ── */
+header {
+  padding: 40px 0 0;
   display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid var(--border);
 }
 
-.nav-logo {
+.logo {
   display: flex; align-items: center; gap: 12px;
-  font-family: var(--display);
-  font-size: 28px; letter-spacing: 2px;
-  color: var(--text);
-  text-decoration: none;
+  font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
 }
 
-.logo-badge {
-  width: 32px; height: 32px;
-  background: linear-gradient(135deg, var(--green), var(--blue));
+.logo-icon {
+  width: 36px; height: 36px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(77,255,160,0.3);
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; color: #000; font-weight: 700; font-family: var(--body);
+  position: relative;
 }
 
-.nav-links { display: flex; align-items: center; gap: 6px; }
-
-.nav-chip {
-  font-family: var(--mono); font-size: 11px;
-  padding: 5px 12px; border-radius: 20px;
-  border: 1px solid var(--border2); color: var(--t2);
-  transition: all 0.2s; cursor: pointer; text-decoration: none;
-}
-.nav-chip:hover { border-color: var(--green); color: var(--green); }
-.nav-chip.active { background: rgba(0,232,122,0.1); border-color: var(--green); color: var(--green); }
-
-/* ── HERO ── */
-.hero {
-  padding: 80px 0 60px;
-  display: grid; grid-template-columns: 1fr 340px; gap: 60px; align-items: center;
+.logo-icon::before {
+  content: '';
+  width: 10px; height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--accent);
+  animation: pulse 2.5s ease-in-out infinite;
 }
 
-.hero-left {}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 8px var(--accent); transform: scale(1); }
+  50% { box-shadow: 0 0 20px var(--accent), 0 0 40px rgba(77,255,160,0.2); transform: scale(1.1); }
+}
+
+.nav-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  color: var(--text3);
+  letter-spacing: 0.5px;
+}
+
+/* ── Hero ── */
+.hero { padding: 72px 0 48px; }
 
 .hero-eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
-  font-family: var(--mono); font-size: 12px; color: var(--green);
-  background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.2);
-  padding: 6px 14px; border-radius: 20px; margin-bottom: 28px;
+  font-family: var(--mono); font-size: 13px;
+  color: var(--accent); margin-bottom: 24px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(77,255,160,0.2);
+  padding: 6px 14px; border-radius: 20px;
 }
 
-.pulse-dot {
-  width: 7px; height: 7px; background: var(--green); border-radius: 50%;
-  box-shadow: 0 0 8px var(--green);
-  animation: pdot 2s ease-in-out infinite;
-}
-@keyframes pdot { 0%,100%{opacity:1;box-shadow:0 0 6px var(--green)} 50%{opacity:.7;box-shadow:0 0 14px var(--green)} }
+.hero-eyebrow::before { content: '◆'; font-size: 8px; }
 
 .hero h1 {
-  font-family: var(--display);
-  font-size: clamp(52px, 7vw, 88px);
-  line-height: 0.92;
-  letter-spacing: 2px;
-  margin-bottom: 24px;
+  font-size: clamp(44px, 6.5vw, 76px);
+  font-weight: 800;
+  line-height: 1.0;
+  letter-spacing: -2px;
+  margin-bottom: 20px;
 }
 
-.hero h1 .hl {
-  background: linear-gradient(90deg, var(--green), var(--blue));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+.hero h1 em {
+  font-style: normal;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.hero-desc {
-  font-size: 18px; color: var(--t2); line-height: 1.7;
-  max-width: 460px; margin-bottom: 36px; font-weight: 300;
+.hero p {
+  font-size: 19px;
+  color: var(--text2);
+  line-height: 1.65;
+  max-width: 520px;
+  font-weight: 400;
 }
 
-.hero-stats {
-  display: flex; gap: 28px;
+/* ── Stats row ── */
+.stats-row {
+  display: flex; gap: 24px; margin-top: 36px;
 }
 
-.hstat { border-left: 2px solid var(--border2); padding-left: 16px; }
-.hstat-num { font-family: var(--display); font-size: 32px; letter-spacing: 1px; line-height: 1; }
-.hstat-lbl { font-family: var(--mono); font-size: 11px; color: var(--t3); margin-top: 2px; letter-spacing: 0.5px; }
+.stat {
+  display: flex; flex-direction: column;
+}
 
-/* Hero right — score preview card */
-.hero-card {
-  background: var(--s1);
+.stat-num {
+  font-size: 26px; font-weight: 800; line-height: 1;
+  background: linear-gradient(135deg, var(--text) 0%, var(--text2) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stat-label {
+  font-size: 13px; color: var(--text3); margin-top: 2px;
+}
+
+.stat-divider { width: 1px; background: var(--border); }
+
+/* ── Input box ── */
+.analyze-card {
+  background: var(--surface);
   border: 1px solid var(--border2);
-  border-radius: 16px;
-  padding: 24px;
-  position: relative; overflow: hidden;
+  border-radius: var(--r);
+  padding: 28px;
+  margin-bottom: 32px;
+  position: relative;
+  overflow: hidden;
 }
 
-.hero-card::before {
+.analyze-card::before {
   content: '';
   position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--green), var(--blue));
+  background: linear-gradient(90deg, var(--accent), var(--blue));
 }
 
-.hcard-label { font-family: var(--mono); font-size: 10px; color: var(--t3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
-
-.hcard-score {
-  display: flex; align-items: flex-end; gap: 8px; margin-bottom: 20px;
-}
-.hcard-num { font-family: var(--display); font-size: 72px; line-height: 1; color: var(--green); }
-.hcard-den { font-family: var(--mono); font-size: 16px; color: var(--t3); margin-bottom: 8px; }
-
-.hcard-grade {
-  display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 500;
-  padding: 4px 12px; border-radius: 20px; margin-bottom: 20px;
-  background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.3); color: var(--green);
+.input-label {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  margin-bottom: 12px; display: block;
+  font-family: var(--mono);
 }
 
-.hcard-bars { display: flex; flex-direction: column; gap: 8px; }
-
-.hbar { display: flex; flex-direction: column; gap: 4px; }
-.hbar-top { display: flex; justify-content: space-between; }
-.hbar-name { font-size: 12px; color: var(--t2); }
-.hbar-val { font-family: var(--mono); font-size: 11px; color: var(--t3); }
-.hbar-track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.hbar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--green), var(--blue)); }
-
-/* ── ANALYZE BOX ── */
-.analyze-section { padding: 0 0 48px; }
-
-.analyze-box {
-  background: var(--s1);
-  border: 1px solid var(--border2);
-  border-radius: 16px;
-  padding: 32px;
-  position: relative; overflow: hidden;
-}
-
-.analyze-box::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--green), var(--blue), var(--purple));
-}
-
-.analyze-title {
-  font-family: var(--display);
-  font-size: 22px; letter-spacing: 1px;
-  color: var(--text); margin-bottom: 6px;
-}
-
-.analyze-sub { font-size: 14px; color: var(--t2); margin-bottom: 24px; }
-
-.input-group { display: flex; gap: 10px; margin-bottom: 16px; }
+.input-row { display: flex; gap: 10px; }
 
 .repo-input {
   flex: 1;
   background: var(--bg);
   border: 1.5px solid var(--border2);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 14px;
-  padding: 15px 20px;
+  font-size: 15px;
+  padding: 14px 18px;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.repo-input::placeholder { color: var(--t3); }
+
+.repo-input::placeholder { color: var(--text3); }
+
 .repo-input:focus {
-  border-color: rgba(0,232,122,0.5);
-  box-shadow: 0 0 0 4px rgba(0,232,122,0.05);
+  border-color: rgba(77,255,160,0.5);
+  box-shadow: 0 0 0 3px rgba(77,255,160,0.06);
 }
 
 .run-btn {
-  background: linear-gradient(135deg, var(--green), #00CC6A);
-  color: #030804;
-  border: none; border-radius: 10px;
-  font-family: var(--body); font-weight: 600; font-size: 15px;
-  padding: 15px 32px;
-  cursor: pointer; white-space: nowrap;
-  transition: all 0.2s;
-  display: flex; align-items: center; gap: 8px;
+  background: var(--accent);
+  color: #060A0E;
+  border: none;
+  border-radius: var(--r-sm);
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 15px;
+  padding: 14px 28px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
 }
-.run-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,232,122,0.3); }
+
+.run-btn:hover { background: #5DFFAA; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(77,255,160,0.25); }
 .run-btn:active { transform: translateY(0); }
-.run-btn:disabled { background: var(--s3); color: var(--t3); cursor: not-allowed; transform: none; box-shadow: none; }
+.run-btn:disabled { background: var(--surface2); color: var(--text3); cursor: not-allowed; transform: none; box-shadow: none; }
 
-.input-tags {
-  display: flex; flex-wrap: wrap; gap: 6px;
-}
-
-.itag {
-  font-family: var(--mono); font-size: 11px;
-  padding: 3px 10px; border-radius: 20px;
-  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-  color: var(--t3);
-}
-
-/* Status / error */
-.status-row {
-  display: none; align-items: center; gap: 12px;
-  background: rgba(56,190,255,0.06); border: 1px solid rgba(56,190,255,0.2);
-  border-radius: 8px; padding: 14px 18px; margin-top: 16px;
-  font-family: var(--mono); font-size: 13px; color: var(--blue);
-}
-.spin { width: 16px; height: 16px; border: 2px solid rgba(56,190,255,0.25); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.65s linear infinite; flex-shrink: 0; }
-@keyframes spin { to{transform:rotate(360deg)} }
-
-.error-row {
-  display: none;
-  background: rgba(255,69,69,0.06); border: 1px solid rgba(255,69,69,0.2);
-  border-radius: 8px; padding: 14px 18px; margin-top: 16px;
-  font-family: var(--mono); font-size: 13px; color: var(--red);
-}
-
-/* ── RESULTS ── */
-#results { display: none; animation: riseUp 0.6s cubic-bezier(0.16,1,0.3,1); }
-@keyframes riseUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-
-.results-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 4px; padding: 0;
-}
-
-.section-head {
-  font-family: var(--display);
-  font-size: 13px; letter-spacing: 3px;
-  color: var(--t3); text-transform: uppercase;
-  display: flex; align-items: center; gap: 10px;
-  margin: 32px 0 14px;
-}
-.section-head::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-/* Score band */
-.score-band {
-  background: var(--s1);
-  border: 1px solid var(--border2);
-  border-radius: 16px;
-  padding: 32px 36px;
-  display: grid;
-  grid-template-columns: 120px 1fr auto;
-  gap: 32px; align-items: center;
-  position: relative; overflow: hidden;
-}
-
-.score-band::before {
-  content: attr(data-score);
-  position: absolute; right: -10px; bottom: -30px;
-  font-family: var(--display); font-size: 200px; opacity: 0.04;
-  line-height: 1; pointer-events: none; color: var(--text);
-}
-
-.score-ring-wrap {
-  width: 120px; height: 120px; position: relative; flex-shrink: 0;
-}
-
-.score-ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-
-.score-ring-bg { fill: none; stroke: var(--border); stroke-width: 6; }
-.score-ring-fill { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1); }
-
-.score-ring-text {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-}
-
-.score-ring-num { font-family: var(--display); font-size: 38px; line-height: 1; letter-spacing: 1px; }
-.score-ring-den { font-family: var(--mono); font-size: 12px; color: var(--t3); }
-
-.score-info h2 { font-family: var(--display); font-size: 28px; letter-spacing: 1px; margin-bottom: 6px; }
-.score-info .desc { font-size: 15px; color: var(--t2); margin-bottom: 14px; font-weight: 300; }
-
-.grade-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 14px; font-weight: 600; padding: 7px 18px;
-  border-radius: 24px; border: 1.5px solid;
-  font-family: var(--body);
-}
-
-.cap-warn {
-  display: none; margin-top: 10px;
-  font-family: var(--mono); font-size: 12px; color: var(--red);
-  background: rgba(255,69,69,0.06); border: 1px solid rgba(255,69,69,0.2);
-  padding: 6px 12px; border-radius: 6px;
-}
-
-.score-actions { display: flex; flex-direction: column; gap: 8px; }
-
-.action-btn {
+.input-hint {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 12px;
   display: flex; align-items: center; gap: 8px;
-  font-family: var(--body); font-size: 13px; font-weight: 500;
-  padding: 10px 16px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--border2); background: var(--s2); color: var(--t2);
-  transition: all 0.2s; white-space: nowrap;
-}
-.action-btn:hover { border-color: var(--border2); background: var(--s3); color: var(--text); }
-.action-btn.primary { background: rgba(0,232,122,0.1); border-color: rgba(0,232,122,0.3); color: var(--green); }
-.action-btn.primary:hover { background: rgba(0,232,122,0.18); }
-
-/* ── TABS ── */
-.tabs { display: flex; gap: 2px; margin-bottom: 16px; background: var(--s1); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
-.tab { flex: 1; text-align: center; padding: 9px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--t3); transition: all 0.2s; }
-.tab.active { background: var(--s3); color: var(--text); }
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
-
-/* ── DIM GRID ── */
-.dim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
-
-.dim-card {
-  background: var(--s1); border: 1px solid var(--border);
-  border-radius: 10px; padding: 20px 22px;
-  cursor: pointer; transition: border-color 0.2s;
-  position: relative; overflow: hidden;
-}
-.dim-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; }
-.dim-card:hover { border-color: var(--border2); }
-
-.dim-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
-.dim-name { font-size: 14px; font-weight: 600; line-height: 1.3; flex: 1; padding-right: 12px; }
-.dim-right { text-align: right; flex-shrink: 0; }
-.dim-score-num { font-family: var(--display); font-size: 28px; letter-spacing: 1px; line-height: 1; }
-.dim-score-den { font-family: var(--mono); font-size: 11px; color: var(--t3); }
-
-.bar-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
-.bar-fill { height: 100%; border-radius: 2px; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
-
-.dim-meta { display: flex; justify-content: space-between; }
-.dim-weight { font-family: var(--mono); font-size: 10px; color: var(--t3); }
-.dim-arrow { font-size: 11px; color: var(--t3); transition: transform 0.2s; }
-.dim-card.open .dim-arrow { transform: rotate(180deg); }
-
-.dim-expand { display: none; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
-.dim-expand.open { display: block; }
-
-.drow { display: flex; gap: 8px; padding: 3px 0; font-size: 13px; line-height: 1.4; align-items: flex-start; }
-.drow-icon { flex-shrink: 0; font-size: 11px; margin-top: 2px; }
-
-/* ── RECOMMENDATIONS ── */
-.rec-list { display: flex; flex-direction: column; gap: 3px; }
-
-.rec-card {
-  background: var(--s1); border: 1px solid var(--border);
-  border-radius: 10px; border-left: 3px solid; padding: 20px 24px;
 }
 
-.rec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.input-hint::before { content: '//'; color: var(--accent); }
 
-.rec-priority {
-  font-family: var(--mono); font-size: 10px; font-weight: 500;
-  padding: 3px 10px; border-radius: 20px; border: 1px solid;
-  text-transform: uppercase; letter-spacing: 0.5px;
+/* Status & Error */
+.status-bar {
+  display: none; align-items: center; gap: 12px;
+  background: var(--blue-dim);
+  border: 1px solid rgba(77,184,255,0.2);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  margin-top: 14px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--blue);
 }
 
-.rec-title { font-size: 15px; font-weight: 600; }
-.rec-body { font-size: 14px; color: var(--t2); line-height: 1.65; margin-bottom: 10px; }
-.rec-steps { display: flex; flex-direction: column; gap: 4px; }
-.rec-step { font-family: var(--mono); font-size: 12px; color: var(--t3); padding-left: 16px; position: relative; line-height: 1.5; }
-.rec-step::before { content: '→'; position: absolute; left: 0; color: var(--green); }
-
-/* ── HISTORY ── */
-.hist-empty { text-align: center; padding: 40px; font-family: var(--mono); font-size: 13px; color: var(--t3); }
-.hist-list { display: flex; flex-direction: column; gap: 3px; }
-
-.hist-item {
-  background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
-  padding: 16px 20px; display: flex; align-items: center; gap: 16px;
-  cursor: pointer; transition: border-color 0.2s;
+.spin {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(77,184,255,0.3);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
-.hist-item:hover { border-color: var(--border2); }
 
-.hist-score {
-  font-family: var(--display); font-size: 32px; letter-spacing: 1px;
-  line-height: 1; width: 60px; flex-shrink: 0;
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-bar {
+  display: none;
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,80,80,0.25);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  margin-top: 14px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--danger);
 }
-.hist-info { flex: 1; }
-.hist-repo { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-.hist-time { font-family: var(--mono); font-size: 11px; color: var(--t3); }
-.hist-grade { font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 20px; border: 1px solid; }
-.hist-del { font-size: 16px; color: var(--t3); cursor: pointer; padding: 4px; transition: color 0.2s; }
-.hist-del:hover { color: var(--red); }
 
-/* ── COMPARE ── */
-.compare-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-.compare-input {
-  background: var(--bg); border: 1.5px solid var(--border2); border-radius: 10px;
-  color: var(--text); font-family: var(--mono); font-size: 13px;
-  padding: 12px 16px; outline: none; width: 100%; transition: border-color 0.2s;
+/* ── Results ── */
+#results { display: none; animation: fadeUp 0.5s ease; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin: 28px 0 12px;
+  display: flex; align-items: center; gap: 10px;
 }
-.compare-input::placeholder { color: var(--t3); }
-.compare-input:focus { border-color: rgba(56,190,255,0.5); }
 
-.compare-btn {
-  background: rgba(56,190,255,0.1); border: 1px solid rgba(56,190,255,0.3);
-  color: var(--blue); border-radius: 10px; padding: 12px 28px;
-  font-family: var(--body); font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: all 0.2s;
-}
-.compare-btn:hover { background: rgba(56,190,255,0.18); }
-.compare-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 16px; }
-
-.compare-col {
-  background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
+/* ── Score card ── */
+.score-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 32px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 28px;
+  position: relative;
   overflow: hidden;
 }
 
-.compare-col-head {
-  padding: 16px 20px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 12px;
+.score-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--blue));
 }
 
-.compare-col-score { font-family: var(--display); font-size: 36px; letter-spacing: 1px; }
-.compare-col-name { font-size: 14px; font-weight: 600; }
-.compare-col-grade { font-family: var(--mono); font-size: 11px; color: var(--t3); }
-
-.compare-dim-list { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
-.compare-dim-row { display: flex; align-items: center; gap: 10px; }
-.compare-dim-name { font-size: 12px; color: var(--t2); flex: 1; }
-.compare-dim-score { font-family: var(--mono); font-size: 12px; font-weight: 500; width: 32px; text-align: right; }
-.compare-dim-bar { flex: 2; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.compare-dim-fill { height: 100%; border-radius: 2px; transition: width 1s cubic-bezier(0.4,0,0.2,1); }
-
-/* ── BADGE ── */
-.badge-section {
-  background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
-  padding: 24px;
+.score-card::after {
+  content: attr(data-score);
+  position: absolute; right: -16px; top: -16px;
+  font-size: 180px; font-weight: 800; opacity: 0.035; line-height: 1;
+  pointer-events: none; font-family: var(--sans);
+  color: var(--text);
 }
-.badge-preview { margin: 16px 0; }
-.badge-preview img { border-radius: 4px; }
-.badge-code {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-  padding: 14px 16px; font-family: var(--mono); font-size: 12px; color: var(--t2);
-  word-break: break-all; line-height: 1.6;
-}
-.copy-btn {
-  margin-top: 10px; font-family: var(--body); font-size: 13px; font-weight: 500;
-  padding: 8px 18px; border-radius: 7px; cursor: pointer;
-  background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.3); color: var(--green);
-  transition: all 0.2s;
-}
-.copy-btn:hover { background: rgba(0,232,122,0.18); }
 
-/* ── FOOTER ── */
+.score-ring {
+  width: 110px; height: 110px;
+  border-radius: 50%;
+  border: 3px solid;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.score-ring::before {
+  content: '';
+  position: absolute; inset: -6px;
+  border-radius: 50%;
+  border: 1px solid;
+  opacity: 0.2;
+}
+
+.score-big { font-size: 36px; font-weight: 800; font-family: var(--mono); line-height: 1; }
+.score-denom { font-size: 13px; color: var(--text3); font-family: var(--mono); }
+
+.score-info h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; }
+.score-info .repo-desc { font-size: 15px; color: var(--text2); margin-bottom: 12px; }
+
+.grade-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1.5px solid;
+}
+
+.cap-warn {
+  display: none;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--danger); margin-top: 8px;
+  background: var(--danger-dim);
+  border: 1px solid rgba(255,80,80,0.2);
+  padding: 6px 12px; border-radius: var(--r-sm);
+}
+
+/* ── Dimension grid ── */
+.dim-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+
+.dim-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.dim-card:hover { border-color: var(--border2); background: var(--surface2); }
+
+.dim-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.dim-name { font-size: 14px; font-weight: 700; line-height: 1.3; }
+.dim-pct { font-family: var(--mono); font-size: 20px; font-weight: 700; line-height: 1; }
+.dim-max { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+
+.bar-track {
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 1.1s cubic-bezier(0.4,0,0.2,1);
+}
+
+.dim-weight {
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+  text-align: right; margin-top: 4px;
+}
+
+.dim-details {
+  display: none; margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.dim-details.open { display: block; }
+
+.detail-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  font-size: 13px; padding: 4px 0; line-height: 1.4;
+}
+
+.detail-icon { flex-shrink: 0; margin-top: 1px; font-size: 12px; }
+
+/* ── Recommendations ── */
+.rec-grid { display: flex; flex-direction: column; gap: 3px; }
+
+.rec-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  border-left: 3px solid;
+  padding: 20px 22px;
+}
+
+.rec-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+
+.priority-badge {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.rec-title { font-size: 15px; font-weight: 700; }
+.rec-msg { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; }
+
+.rec-steps { display: flex; flex-direction: column; gap: 4px; }
+
+.rec-step {
+  font-family: var(--mono); font-size: 12px; color: var(--text3);
+  padding-left: 16px; position: relative; line-height: 1.5;
+}
+
+.rec-step::before { content: '→'; position: absolute; left: 0; color: var(--accent); }
+
+/* ── Footer ── */
 footer {
-  border-top: 1px solid var(--border); padding: 28px 0; margin-top: 64px;
-  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding: 28px 0;
+  margin-top: 56px;
+  display: flex; justify-content: space-between; align-items: center;
 }
-footer p { font-family: var(--mono); font-size: 12px; color: var(--t3); }
-footer a { color: var(--green); text-decoration: none; }
+
+footer p { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+footer a { color: var(--accent); text-decoration: none; }
 
 /* Colors */
-.cg { color: var(--green); border-color: var(--green); }
-.cb { color: var(--blue);  border-color: var(--blue);  }
-.ca { color: var(--amber); border-color: var(--amber); }
-.cr { color: var(--red);   border-color: var(--red);   }
-.fg { background: var(--green); }
-.fb { background: var(--blue); }
-.fa { background: var(--amber); }
-.fr { background: var(--red); }
-.bg-g { background: rgba(0,232,122,0.08);  border-color: rgba(0,232,122,0.25); }
-.bg-b { background: rgba(56,190,255,0.08); border-color: rgba(56,190,255,0.25); }
-.bg-a { background: rgba(255,176,32,0.08); border-color: rgba(255,176,32,0.25); }
-.bg-r { background: rgba(255,69,69,0.08);  border-color: rgba(255,69,69,0.25);  }
+.col-green { color: var(--accent); border-color: var(--accent); }
+.col-blue  { color: var(--blue);   border-color: var(--blue);   }
+.col-warn  { color: var(--warn);   border-color: var(--warn);   }
+.col-red   { color: var(--danger); border-color: var(--danger); }
+.fill-green { background: var(--accent); }
+.fill-blue  { background: var(--blue);   }
+.fill-warn  { background: var(--warn);   }
+.fill-red   { background: var(--danger); }
+.bg-green { background: var(--accent-dim); }
+.bg-blue  { background: var(--blue-dim);  }
+.bg-warn  { background: var(--warn-dim);  }
+.bg-red   { background: var(--danger-dim); }
 
-@media(max-width:720px) {
-  .hero { grid-template-columns: 1fr; }
-  .hero-card { display: none; }
-  .score-band { grid-template-columns: 1fr; }
-  .dim-grid, .compare-grid, .compare-inputs { grid-template-columns: 1fr; }
-  .input-group { flex-direction: column; }
-  .score-actions { flex-direction: row; flex-wrap: wrap; }
+@media(max-width:640px) {
+  .input-row { flex-direction: column; }
+  .score-card { grid-template-columns: 1fr; text-align: center; }
+  .score-card::after { display: none; }
+  .dim-grid { grid-template-columns: 1fr; }
+  .stats-row { gap: 16px; }
+  .hero h1 { letter-spacing: -1px; }
 }
 </style>
 </head>
 <body>
-<div class="bg-effects">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-</div>
-<div class="grid-overlay"></div>
-
-<div class="page">
 <div class="wrap">
 
-<!-- NAV -->
-<nav>
-  <a class="nav-logo" href="#">
-    <div class="logo-badge">DW</div>
-    DEPLOYWATCH
-  </a>
-  <div class="nav-links">
-    <span class="nav-chip active">Analyzer</span>
-    <a class="nav-chip" href="https://github.com" target="_blank">GitHub</a>
+  <header>
+    <div class="logo"><div class="dot"></div>DeployWatch</div>
+    <div class="tag">PROD READINESS</div>
+    <div class="logo">
+      <div class="logo-icon"></div>
+      DeployWatch
+    </div>
+    <div class="nav-badge">v2.0 · GitHub API</div>
+  </header>
+
+  <section class="hero">
+    <h1>Is your repo<br/><span>prod-ready?</span></h1>
+    <p>Paste any public GitHub repo. We score it across 8 dimensions using live GitHub data and flag exactly what needs fixing.</p>
+    <div class="hero-eyebrow">Production Readiness Agent</div>
+    <h1>Is your repo<br/><em>truly prod-ready?</em></h1>
+    <p>Paste any public GitHub URL. We score it live across 8 dimensions and tell you exactly what's missing before you ship.</p>
+
+    <div class="stats-row">
+      <div class="stat"><div class="stat-num">8</div><div class="stat-label">Dimensions scored</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><div class="stat-num">100</div><div class="stat-label">Point scale</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><div class="stat-num">Live</div><div class="stat-label">GitHub data</div></div>
+    </div>
+  </section>
+  <div class="box">
+    <div class="row">
+      <input type="text" id="url" placeholder="https://github.com/owner/repo" autocomplete="off" spellcheck="false"/>
+      <button class="btn" id="btn" onclick="run()">Analyze</button>
+
+  <div class="analyze-card">
+    <label class="input-label">// github repository url</label>
+    <div class="input-row">
+      <input class="repo-input" type="text" id="url"
+        placeholder="https://github.com/owner/repo"
+        autocomplete="off" spellcheck="false"/>
+      <button class="run-btn" id="btn" onclick="run()">Analyze →</button>
+    </div>
+    <p class="hint">// activity · documentation · code quality · community · reliability · security · performance · innovation</p>
+    <div class="status" id="status"><div class="spin"></div><span id="stxt">Fetching...</span></div>
+    <div class="err" id="err"></div>
+    <div class="input-hint">activity · docs · code quality · community · reliability · security · performance · innovation</div>
+    <div class="status-bar" id="status"><div class="spin"></div><span id="stxt">Fetching...</span></div>
+    <div class="error-bar" id="err"></div>
   </div>
-</nav>
 
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-left">
-    <div class="hero-eyebrow"><div class="pulse-dot"></div>Production Readiness Agent</div>
-    <h1>SHIP WITH<br/><span class="hl">CONFIDENCE</span></h1>
-    <p class="hero-desc">Score any GitHub repo across 8 production dimensions. Get live data, AI-powered recommendations, and know exactly what to fix before you deploy.</p>
-    <div class="hero-stats">
-      <div class="hstat"><div class="hstat-num" style="color:var(--green)">8</div><div class="hstat-lbl">DIMENSIONS</div></div>
-      <div class="hstat"><div class="hstat-num" style="color:var(--blue)">100</div><div class="hstat-lbl">POINT SCALE</div></div>
-      <div class="hstat"><div class="hstat-num" style="color:var(--amber)">LIVE</div><div class="hstat-lbl">GITHUB API</div></div>
-    </div>
-  </div>
-  <div class="hero-card">
-    <div class="hcard-label">// SAMPLE ANALYSIS</div>
-    <div class="hcard-score">
-      <div class="hcard-num">84</div>
-      <div class="hcard-den">/100</div>
-    </div>
-    <div class="hcard-grade">A — Almost There</div>
-    <div class="hcard-bars">
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Activity</span><span class="hbar-val">92</span></div><div class="hbar-track"><div class="hbar-fill" style="width:92%"></div></div></div>
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Documentation</span><span class="hbar-val">78</span></div><div class="hbar-track"><div class="hbar-fill" style="width:78%"></div></div></div>
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Security</span><span class="hbar-val">60</span></div><div class="hbar-track"><div class="hbar-fill" style="width:60%;background:var(--amber)"></div></div></div>
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Reliability</span><span class="hbar-val">85</span></div><div class="hbar-track"><div class="hbar-fill" style="width:85%"></div></div></div>
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Community</span><span class="hbar-val">45</span></div><div class="hbar-track"><div class="hbar-fill" style="width:45%;background:var(--red)"></div></div></div>
-    </div>
-  </div>
-</section>
+  <div id="results">
+    <div class="lbl">// overall score</div>
+    <div class="score-hero">
+      <div class="score-top">
+        <div class="big-score" id="big-score"><div class="num" id="score-num">--</div><div class="den">/100</div></div>
+        <div class="score-meta">
+          <h2 id="repo-title">--</h2>
+          <p id="repo-desc">--</p>
+          <div class="grade-pill" id="grade-pill">--</div>
+        </div>
 
-<!-- ANALYZE -->
-<section class="analyze-section">
-  <div class="analyze-box">
-    <div class="analyze-title">ANALYZE A REPOSITORY</div>
-    <div class="analyze-sub">Paste any public GitHub URL and hit Analyze</div>
+    <div class="section-label">Overall Score</div>
 
-    <div class="token-row">
-      <span class="token-icon">🔑</span>
-      <span class="token-label">GitHub Token (optional — avoids rate limits)</span>
-      <input class="token-input" type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx"/>
-    </div>
-
-    <div class="input-group">
-      <input class="repo-input" type="text" id="url" placeholder="https://github.com/owner/repo" autocomplete="off" spellcheck="false"/>
-      <button class="run-btn" id="btn" onclick="analyze()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        Analyze
-      </button>
-    </div>
-
-    <div class="input-tags">
-      <span class="itag">Activity</span><span class="itag">Documentation</span><span class="itag">Code Quality</span>
-      <span class="itag">Community</span><span class="itag">Reliability</span><span class="itag">Security</span>
-      <span class="itag">Performance</span><span class="itag">Innovation</span>
-    </div>
-
-    <div class="status-row" id="status"><div class="spin"></div><span id="stxt">Fetching...</span></div>
-    <div class="error-row" id="err"></div>
-  </div>
-</section>
-
-<!-- RESULTS -->
-<div id="results">
-
-  <!-- Score band -->
-  <div class="section-head">Overall Score</div>
-  <div class="score-band" id="score-band">
-    <div class="score-ring-wrap">
-      <svg class="score-ring-svg" viewBox="0 0 120 120">
-        <circle class="score-ring-bg" cx="60" cy="60" r="52"/>
-        <circle class="score-ring-fill" id="ring-fill" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
-      </svg>
-      <div class="score-ring-text">
-        <div class="score-ring-num" id="score-num">--</div>
-        <div class="score-ring-den">/100</div>
+    <div class="score-card" id="score-card">
+      <div class="score-ring" id="score-ring">
+        <div class="score-big" id="score-num">--</div>
+        <div class="score-denom">/100</div>
       </div>
+      <div class="score-info">
+        <h2 id="repo-title">--</h2>
+        <div class="repo-desc" id="repo-desc">--</div>
+        <div class="grade-tag" id="grade-tag">--</div>
+        <div class="cap-warn" id="cap-warn">⚠ Score capped — a critical dimension scored zero</div>
+      </div>
+      <div id="score-meta-right"></div>
     </div>
-    <div class="score-info">
-      <h2 id="repo-name">--</h2>
-      <div class="desc" id="repo-desc">--</div>
-      <div class="grade-badge" id="grade-badge">--</div>
-      <div class="cap-warn" id="cap-warn">⚠ Score capped at 60 — a critical dimension scored zero</div>
-    </div>
-    <div class="score-actions">
-      <button class="action-btn primary" onclick="shareRepo()">🔗 Share</button>
-      <button class="action-btn" onclick="showTab('history')">📋 History</button>
-      <button class="action-btn" onclick="showTab('badge')">🏷 Get Badge</button>
-    </div>
-  </div>
+    <div class="lbl">// 8 dimensions</div>
+    <div class="dims" id="dims"></div>
+    <div class="lbl">// recommendations</div>
+    <div class="recs" id="recs"></div>
 
-  <!-- Tabs -->
-  <div class="section-head">Details</div>
-  <div class="tabs">
-    <div class="tab active" onclick="showTab('dims')" id="tab-dims">Dimensions</div>
-    <div class="tab" onclick="showTab('recs')" id="tab-recs">Recommendations</div>
-    <div class="tab" onclick="showTab('compare')" id="tab-compare">Compare</div>
-    <div class="tab" onclick="showTab('history')" id="tab-history">History</div>
-    <div class="tab" onclick="showTab('badge')" id="tab-badge">Badge</div>
-  </div>
-
-  <!-- Dimensions panel -->
-  <div class="tab-panel active" id="panel-dims">
+    <div class="section-label">8 Dimensions</div>
     <div class="dim-grid" id="dims"></div>
+
+    <div class="section-label">Recommendations</div>
+    <div class="rec-grid" id="recs"></div>
+
   </div>
+  <footer><p>DeployWatch — Production Engineering Hackathon</p><p style="color:var(--accent)">GitHub API</p></footer>
 
-  <!-- Recommendations panel -->
-  <div class="tab-panel" id="panel-recs">
-    <div class="rec-list" id="recs"></div>
-  </div>
-
-  <!-- Compare panel -->
-  <div class="tab-panel" id="panel-compare">
-    <div class="compare-inputs">
-      <input class="compare-input" type="text" id="cmp1" placeholder="github.com/owner/repo-1"/>
-      <input class="compare-input" type="text" id="cmp2" placeholder="github.com/owner/repo-2"/>
-    </div>
-    <button class="compare-btn" id="cmp-btn" onclick="runCompare()">Compare Repos →</button>
-    <div id="compare-result"></div>
-  </div>
-
-  <!-- History panel -->
-  <div class="tab-panel" id="panel-history">
-    <div id="hist-content"></div>
-  </div>
-
-  <!-- Badge panel -->
-  <div class="tab-panel" id="panel-badge">
-    <div class="badge-section">
-      <div style="font-size:15px;font-weight:600;margin-bottom:6px">Embed your score in your README</div>
-      <div style="font-size:14px;color:var(--t2);margin-bottom:16px">Add this badge to show off your production readiness score.</div>
-      <div class="badge-preview" id="badge-preview"></div>
-      <div class="badge-code" id="badge-code">Run an analysis first to generate your badge.</div>
-      <button class="copy-btn" onclick="copyBadge()">Copy Markdown</button>
-    </div>
-  </div>
-
-</div><!-- /results -->
-
-</div><!-- /wrap -->
-
-<footer>
-  <div class="wrap" style="width:100%;display:flex;justify-content:space-between;align-items:center">
+  <footer>
     <p>DeployWatch — Production Engineering Hackathon 2026</p>
-    <p>Built with the <a href="https://docs.github.com/en/rest" target="_blank">GitHub REST API</a></p>
-  </div>
-</footer>
-</div><!-- /page -->
+    <p>Powered by <a href="https://docs.github.com/en/rest" target="_blank">GitHub REST API</a></p>
+  </footer>
+</div>
 
 <script>
-// ── Config ─────────────────────────────────────────────────────
-const GH = 'https://api.github.com';
-const GH_TOKEN = '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';
-const WEIGHTS = [0.18,0.15,0.15,0.15,0.12,0.10,0.08,0.07];
-const DIM_NAMES = ['Activity & Maintenance','Documentation Quality','Code Quality','Community Engagement','Reliability & Testing','Security & Best Practices','Performance','Innovation & Impact'];
+const GH='https://api.github.com';
+function parseUrl(s){s=s.trim().replace(/\/$/,'');const m=s.match(/github\.com\/([^\/]+\/[^\/]+)/);if(m)return m[1];if(s.match(/^[\w.-]+\/[\w.-]+$/))return s;return null;}
+async function gh(p){const r=await fetch(GH+p,{headers:{Accept:'application/vnd.github+json'}});if(!r.ok)throw new Error(`GitHub ${r.status}`);return r.json();}
+const WEIGHTS=[0.18,0.15,0.15,0.15,0.12,0.10,0.08,0.07];
+const NAMES=['Activity & Maintenance','Documentation Quality','Code Quality','Community Engagement','Reliability & Testing','Security & Best Practices','Performance','Innovation & Impact'];
+function col(s){return s>=75?'green':s>=50?'yellow':s>=30?'orange':'red';}
+function grade(s){if(s>=80)return['A','Excellent — production ready'];if(s>=65)return['B','Good — minor improvements needed'];if(s>=50)return['C','Fair — significant gaps'];if(s>=35)return['D','Poor — major issues'];return['F','Critical — urgent action required'];}
+function dim(score,good,bad){return{score:Math.min(score,100),good,bad};}
 
-// ── URL parsing ─────────────────────────────────────────────────
+function scoreActivity(r,commits){
+  let s=0,g=[],b=[];
+  const days=(Date.now()-new Date(r.pushed_at))/86400000;
+  if(days<1){s+=30;g.push('Committed today');}else if(days<7){s+=22;g.push('Committed this week');}else if(days<30){s+=12;g.push('Committed this month');}else b.push('No commits in 30+ days');
+  if(commits>=100){s+=40;g.push(`${commits} commits`);}else if(commits>=20){s+=25;g.push(`${commits} commits`);}else{s+=10;b.push(`Low history: ${commits} commits`);}
+  if(r.open_issues_count<10){s+=30;g.push('Clean issue backlog');}else if(r.open_issues_count<50){s+=15;}else b.push(`${r.open_issues_count} open issues`);
+  return dim(s,g,b);
+}
+function scoreDoc(r,readme,wiki,pages){
+  let s=0,g=[],b=[];
+  if(readme){s+=40;g.push('README.md exists');}else b.push('No README — add one immediately');
+  if(r.description){s+=20;g.push('Description set');}else b.push('No repo description');
+  if(wiki){s+=20;g.push('Wiki enabled');}else b.push('No wiki');
+  if(pages){s+=20;g.push('GitHub Pages active');}else b.push('No GitHub Pages');
+  return dim(s,g,b);
+}
+function scoreCode(r,langs){
+  let s=0,g=[],b=[];
+  if(Object.keys(langs).length>0){s+=30;g.push(`Primary: ${Object.keys(langs)[0]}`);}
+  if(r.size<50000){s+=20;g.push('Lean repo size');}else if(r.size<200000){s+=10;}else b.push('Large repo — consider splitting');
+  if(r.default_branch==='main'){s+=20;g.push('Uses main branch');}
+  if(r.has_issues){s+=15;g.push('Issue tracking on');}
+  if(r.has_projects){s+=15;g.push('Projects board enabled');}else b.push('No project board');
+  return dim(s,g,b);
+}
+function scoreCommunity(r){
+  let s=0,g=[],b=[];
+  if(r.stargazers_count>1000){s+=40;g.push(`${r.stargazers_count} stars`);}else if(r.stargazers_count>100){s+=25;g.push(`${r.stargazers_count} stars`);}else if(r.stargazers_count>0){s+=10;g.push(`${r.stargazers_count} stars`);}else b.push('0 stars — promote the project');
+  if(r.forks_count>50){s+=30;g.push(`${r.forks_count} forks`);}else if(r.forks_count>5){s+=15;g.push(`${r.forks_count} forks`);}else b.push('Very few forks');
+  if(r.watchers_count>10){s+=20;g.push(`${r.watchers_count} watchers`);}else b.push('Low watchers');
+  if(r.network_count>1){s+=10;g.push('Has network forks');}
+  return dim(s,g,b);
+}
+function scoreReliability(r,ci){
+  let s=0,g=[],b=[];
+  if(ci){s+=40;g.push('CI/CD pipeline found');}else b.push('No CI/CD — add GitHub Actions');
+  if(!r.archived){s+=20;g.push('Repo is active');}
+  if(r.has_issues){s+=20;g.push('Issue tracking on');}
+  if(r.open_issues_count===0){s+=20;g.push('No open issues');}else if(r.open_issues_count<20){s+=10;}else b.push(`${r.open_issues_count} unresolved issues`);
+  return dim(s,g,b);
+}
+function scoreSecurity(r,sec){
+  let s=0,g=[],b=[];
+  if(sec){s+=40;g.push('SECURITY.md found');}else b.push('No SECURITY.md — add one');
+  if(r.license){s+=30;g.push(`License: ${r.license.spdx_id}`);}else b.push('No license — add one');
+  if(!r.archived){s+=20;g.push('Actively maintained');}
+  s+=10;
+  return dim(s,g,b);
+}
+function scorePerf(r){
+  let s=0,g=[],b=[];
+  if(r.size<5000){s+=40;g.push('Very small repo');}else if(r.size<50000){s+=25;g.push('Reasonable size');}else b.push('Large repo — use Git LFS');
+  if(r.forks_count>0){s+=20;g.push('Used by others');}
+  if(r.stargazers_count>10){s+=20;g.push('Visible project');}
+  if(r.open_issues_count<5){s+=20;g.push('Low issue debt');}
+  return dim(s,g,b);
+}
+function scoreInnovation(r,topics){
+  let s=0,g=[],b=[];
+  const age=(Date.now()-new Date(r.created_at))/86400000;
+  if(age<90){s+=30;g.push('Fresh new project');}else if(age<365){s+=20;g.push('Growing project');}else{s+=10;g.push('Established project');}
+  if(topics.length>3){s+=30;g.push(`${topics.length} topic tags`);}else if(topics.length>0){s+=15;g.push(`${topics.length} topics`);}else b.push('No topic tags — add some');
+  if(r.stargazers_count>50){s+=40;g.push('Gaining traction');}else if(r.stargazers_count>5){s+=20;}else b.push('Low visibility');
+  return dim(s,g,b);
+}
+
+const STEPS={
+  'README':['Create README.md with description','Add installation and usage instructions','Include screenshots or a demo GIF'],
+  'CI/CD':['Add .github/workflows/ci.yml','Set up tests on push','Add build badge to README'],
+  'license':['Add a LICENSE file (MIT is most common)','Use choosealicense.com to pick one'],
+  'SECURITY':['Create SECURITY.md with reporting guide','Enable Dependabot in repo settings'],
+  'stars':['Share on Twitter/LinkedIn','Post on Reddit r/programming','Submit to Hacker News Show HN'],
+  'topics':['Go to repo Settings → add relevant topics'],
+  'description':['Click ⚙️ next to About on repo page','Write a one-line summary'],
+};
+function getSteps(msg){for(const[k,v]of Object.entries(STEPS)){if(msg.toLowerCase().includes(k.toLowerCase()))return v;}return[];}
+
+function render(repo,dims){
+  document.getElementById('results').style.display='block';
+  const overall=Math.round(dims.reduce((a,d,i)=>a+d.score*WEIGHTS[i],0));
+  const [g,gl]=grade(overall);const c=col(overall);
+  document.getElementById('score-num').textContent=overall;
+  document.getElementById('big-score').className='big-score c-'+c;
+  document.getElementById('repo-title').textContent=repo.full_name;
+  document.getElementById('repo-desc').textContent=repo.description||'No description';
+  const gp=document.getElementById('grade-pill');gp.textContent=`${g} — ${gl}`;gp.className='grade-pill c-'+c;
+
+  const de=document.getElementById('dims');de.innerHTML='';
+  dims.forEach((d,i)=>{
+    const dc=col(d.score);
+    const el=document.createElement('div');el.className='dim';
+    el.innerHTML=`<div class="dim-top"><div class="dim-name">${NAMES[i]}</div><div class="dim-score c-${dc}">${d.score}/100</div></div><div class="track"><div class="fill f-${dc}" id="f${i}" style="width:0%"></div></div><div class="dim-detail" id="dd${i}">${d.good.map(x=>`<div class="detail-item good">${x}</div>`).join('')}${d.bad.map(x=>`<div class="detail-item bad">${x}</div>`).join('')}</div>`;
+    el.onclick=()=>document.getElementById('dd'+i).classList.toggle('open');
+    de.appendChild(el);
+    setTimeout(()=>{document.getElementById('f'+i).style.width=d.score+'%';},100+i*60);
+const GH = 'https://api.github.com';
+
 function parseUrl(s) {
   s = s.trim().replace(/\/$/, '').replace(/\.git$/, '');
   const m = s.match(/github\.com\/([^\/\s]+\/[^\/\s]+)/);
@@ -722,476 +780,394 @@ function parseUrl(s) {
   return null;
 }
 
-// ── GitHub fetch ────────────────────────────────────────────────
 async function ghGet(path) {
-  const r = await fetch(GH + path, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${GH_TOKEN}`,
-    }
-  });
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  const r = await fetch(GH + path, { headers });
+  const r = await fetch(GH + path, { headers: { Accept: 'application/vnd.github+json' } });
   if (!r.ok) throw new Error(`GitHub ${r.status}`);
   return r.json();
 }
 
-// ── Scoring ─────────────────────────────────────────────────────
-function mk(s,g,b){return{score:Math.min(Math.max(Math.round(s),0),100),good:g,bad:b};}
+// ── Scoring weights ──────────────────────────────────────────────
+const WEIGHTS  = [0.18, 0.15, 0.15, 0.15, 0.12, 0.10, 0.08, 0.07];
+const DIM_NAMES = [
+  'Activity & Maintenance',
+  'Documentation Quality',
+  'Code Quality',
+  'Community Engagement',
+  'Reliability & Testing',
+  'Security & Best Practices',
+  'Performance',
+  'Innovation & Impact',
+];
 
-function scoreActivity(r,n){
-  let s=0,g=[],b=[];
-  const d=(Date.now()-new Date(r.pushed_at))/86400000;
-  if(d<1){s+=25;g.push('Committed today');}else if(d<7){s+=18;g.push('Committed this week');}else if(d<30){s+=10;g.push('Committed this month');}else if(d<90){s+=4;b.push(`Last push ${Math.round(d)} days ago`);}else{b.push('No commits in 90+ days');}
-  if(n>=200){s+=40;g.push(`${n}+ commits — very active`);}else if(n>=50){s+=30;g.push(`${n} commits`);}else if(n>=15){s+=18;g.push(`${n} commits`);}else{s+=5;b.push(`Only ${n} commits — limited history`);}
-  const i=r.open_issues_count;
-  if(i===0){s+=35;g.push('Zero open issues');}else if(i<5){s+=25;g.push(`${i} open issues`);}else if(i<20){s+=15;g.push(`${i} open issues`);}else if(i<50){s+=5;b.push(`${i} open issues — review backlog`);}else{b.push(`${i} open issues — out of control`);}
-  return mk(s,g,b);
+// ── Score functions ──────────────────────────────────────────────
+function mk(s, g, b) { return { score: Math.min(Math.max(Math.round(s), 0), 100), good: g, bad: b }; }
+
+function scoreActivity(r, commits) {
+  let s = 0, g = [], b = [];
+  const days = (Date.now() - new Date(r.pushed_at)) / 86400000;
+  if (days < 1)   { s += 25; g.push('Committed today — extremely active'); }
+  else if (days < 7)  { s += 18; g.push('Committed this week'); }
+  else if (days < 30) { s += 10; g.push('Committed this month'); }
+  else if (days < 90) { s += 4; b.push(`Last push ${Math.round(days)} days ago`); }
+  else { b.push('No commits in 90+ days — may be abandoned'); }
+
+  if (commits >= 200)     { s += 40; g.push(`Very high activity: ${commits}+ commits`); }
+  else if (commits >= 50) { s += 30; g.push(`Good history: ${commits} commits`); }
+  else if (commits >= 15) { s += 18; g.push(`${commits} commits`); }
+  else { s += 5; b.push(`Very few commits (${commits}) — limited history`); }
+
+  const issues = r.open_issues_count;
+  if (issues === 0)   { s += 35; g.push('Zero open issues — clean backlog'); }
+  else if (issues < 5)  { s += 25; g.push(`Only ${issues} open issues`); }
+  else if (issues < 20) { s += 15; g.push(`${issues} open issues`); }
+  else if (issues < 50) { s += 5; b.push(`${issues} open issues — review backlog`); }
+  else { b.push(`${issues} open issues — backlog out of control`); }
+
+  return mk(s, g, b);
 }
 
-function scoreDoc(r,readme,wiki,pages){
-  let s=0,g=[],b=[];
-  if(readme){s+=35;g.push('README.md present');}else b.push('No README — add one immediately');
-  if(r.description){s+=20;g.push(`Description: "${r.description.slice(0,50)}${r.description.length>50?'...':''}"`);}else b.push('No repo description');
-  if(wiki){s+=20;g.push('GitHub Wiki enabled');}else b.push('No wiki');
-  if(pages){s+=25;g.push('GitHub Pages live');}else b.push('No GitHub Pages');
-  return mk(s,g,b);
+function scoreDoc(r, readme, wiki, pages) {
+  let s = 0, g = [], b = [];
+  if (readme)  { s += 35; g.push('README.md present'); } else b.push('No README — critical missing file');
+  if (r.description) { s += 20; g.push(`Description: "${r.description.slice(0, 50)}${r.description.length > 50 ? '...' : ''}"`); } else b.push('No repo description set');
+  if (wiki)    { s += 20; g.push('GitHub Wiki enabled'); } else b.push('No wiki — consider adding one');
+  if (pages)   { s += 25; g.push('GitHub Pages live'); } else b.push('No GitHub Pages');
+  return mk(s, g, b);
 }
 
-function scoreCode(r,langs){
-  let s=0,g=[],b=[];
-  const ll=Object.keys(langs);
-  if(ll.length>0){s+=25;g.push(`Primary: ${ll[0]}`);}
-  if(ll.length>2){s+=10;g.push(`Multi-language: ${ll.slice(0,3).join(', ')}`);}
-  const kb=r.size;
-  if(kb<1000){s+=25;g.push('Lightweight repo');}else if(kb<20000){s+=18;g.push('Reasonable size');}else if(kb<100000){s+=8;b.push('Large repo — consider cleanup');}else{b.push('Very large — use Git LFS');}
-  if(r.default_branch==='main'){s+=15;g.push('Modern main branch');}else{b.push('Rename master → main');}
-  if(r.has_issues){s+=15;g.push('Issue tracking on');}
-  if(r.has_projects){s+=10;g.push('Project boards active');}else b.push('No project boards');
-  return mk(s,g,b);
+function scoreCode(r, langs) {
+  let s = 0, g = [], b = [];
+  const langList = Object.keys(langs);
+  if (langList.length > 0) { s += 25; g.push(`Primary language: ${langList[0]}`); }
+  if (langList.length > 2) { s += 10; g.push(`Multi-language: ${langList.slice(0,3).join(', ')}`); }
+
+  const kb = r.size;
+  if (kb < 1000)       { s += 25; g.push('Lightweight repo'); }
+  else if (kb < 20000) { s += 18; g.push('Reasonable repo size'); }
+  else if (kb < 100000){ s += 8;  b.push('Large repo — consider cleanup'); }
+  else { b.push('Very large repo — use Git LFS for assets'); }
+
+  if (r.default_branch === 'main') { s += 15; g.push('Modern main branch'); }
+  else { b.push('Still using master — rename to main'); }
+
+  if (r.has_issues)   { s += 15; g.push('Issue tracking enabled'); }
+  if (r.has_projects) { s += 10; g.push('Project boards enabled'); } else b.push('No project boards');
+  return mk(s, g, b);
 }
 
-function scoreCommunity(r){
-  let s=0,g=[],b=[];
-  const st=r.stargazers_count;
-  if(st>=10000){s+=40;g.push(`${st.toLocaleString()} stars`);}else if(st>=1000){s+=32;g.push(`${st.toLocaleString()} stars`);}else if(st>=100){s+=22;g.push(`${st} stars`);}else if(st>=10){s+=12;g.push(`${st} stars`);}else if(st>0){s+=5;g.push(`${st} stars`);}else{b.push('0 stars — needs promotion');}
-  const f=r.forks_count;
-  if(f>=500){s+=30;g.push(`${f} forks`);}else if(f>=50){s+=22;g.push(`${f} forks`);}else if(f>=5){s+=12;g.push(`${f} forks`);}else{b.push('Very few forks');}
-  if(r.watchers_count>100){s+=20;g.push(`${r.watchers_count} watchers`);}else if(r.watchers_count>10){s+=12;g.push(`${r.watchers_count} watchers`);}else{b.push('Low watcher count');}
-  if(r.subscribers_count>5){s+=10;g.push('Active subscribers');}
-  return mk(s,g,b);
+function scoreCommunity(r) {
+  let s = 0, g = [], b = [];
+  const stars = r.stargazers_count;
+  if (stars >= 10000) { s += 40; g.push(`${stars.toLocaleString()} stars — hugely popular`); }
+  else if (stars >= 1000) { s += 32; g.push(`${stars.toLocaleString()} stars`); }
+  else if (stars >= 100)  { s += 22; g.push(`${stars} stars — growing`); }
+  else if (stars >= 10)   { s += 12; g.push(`${stars} stars`); }
+  else if (stars > 0)     { s += 5;  g.push(`${stars} stars`); }
+  else { b.push('0 stars — promote the project'); }
+
+  const forks = r.forks_count;
+  if (forks >= 500) { s += 30; g.push(`${forks} forks`); }
+  else if (forks >= 50) { s += 22; g.push(`${forks} forks`); }
+  else if (forks >= 5)  { s += 12; g.push(`${forks} forks`); }
+  else { b.push('Very few forks — not widely used yet'); }
+
+  if (r.watchers_count > 100) { s += 20; g.push(`${r.watchers_count} watchers`); }
+  else if (r.watchers_count > 10) { s += 12; g.push(`${r.watchers_count} watchers`); }
+  else { b.push('Low watchers — limited community interest'); }
+
+  if (r.subscribers_count > 5) { s += 10; g.push('Active subscriber base'); }
+  return mk(s, g, b);
 }
 
-function scoreReliability(r,ci){
-  let s=0,g=[],b=[];
-  if(ci){s+=45;g.push('CI/CD pipeline found');}else{b.push('No CI/CD — add GitHub Actions');}
-  if(!r.archived){s+=20;g.push('Actively maintained');}else{b.push('Repo is archived');}
-  if(r.has_issues){s+=15;g.push('Issue tracking on');}
-  const i=r.open_issues_count;
-  if(i===0){s+=20;g.push('No open issues');}else if(i<10){s+=12;}else if(i<30){s+=5;b.push(`${i} issues — needs triage`);}else{b.push(`${i} issues — unmanaged`);}
-  return mk(s,g,b);
+function scoreReliability(r, ci) {
+  let s = 0, g = [], b = [];
+  if (ci) { s += 45; g.push('CI/CD pipeline found (.github/workflows)'); }
+  else    { b.push('No CI/CD — add GitHub Actions for automated testing'); }
+
+  if (!r.archived)  { s += 20; g.push('Repo is actively maintained'); }
+  else { b.push('Repo is archived — read only'); }
+
+  if (r.has_issues) { s += 15; g.push('Issue tracking enabled'); }
+
+  const issues = r.open_issues_count;
+  if (issues === 0)   { s += 20; g.push('No open issues'); }
+  else if (issues < 10) { s += 12; }
+  else if (issues < 30) { s += 5; b.push(`${issues} open issues — needs triage`); }
+  else { b.push(`${issues} open issues — backlog not managed`); }
+
+  return mk(s, g, b);
 }
 
-function scoreSecurity(r,sec){
-  let s=0,g=[],b=[];
-  if(sec){s+=40;g.push('SECURITY.md present');}else{b.push('No SECURITY.md');}
-  if(r.license){s+=35;g.push(`License: ${r.license.spdx_id}`);}else{b.push('No license — legally risky');}
-  if(!r.archived){s+=15;g.push('Actively maintained');}
-  s+=10;
-  return mk(s,g,b);
+function scoreSecurity(r, sec) {
+  let s = 0, g = [], b = [];
+  if (sec)       { s += 40; g.push('SECURITY.md present'); }
+  else           { b.push('No SECURITY.md — add a vulnerability reporting policy'); }
+  if (r.license) { s += 35; g.push(`License: ${r.license.spdx_id}`); }
+  else           { b.push('No license — users cannot legally use the code'); }
+  if (!r.archived)     { s += 15; g.push('Actively maintained'); }
+  if (r.private === false) { s += 10; g.push('Open source'); }
+  return mk(s, g, b);
 }
 
-function scorePerf(r){
-  let s=0,g=[],b=[];
-  const kb=r.size;
-  if(kb<500){s+=40;g.push('Extremely lean');}else if(kb<5000){s+=30;g.push('Lightweight');}else if(kb<50000){s+=18;g.push('Reasonable size');}else{b.push('Heavy repo — consider Git LFS');}
-  if(r.forks_count>10){s+=25;g.push('Widely forked');}
-  if(r.stargazers_count>20){s+=20;g.push('Good visibility');}
-  if(r.open_issues_count<5){s+=15;g.push('Low issue overhead');}else{b.push('High issue count affects maintainability');}
-  return mk(s,g,b);
+function scorePerf(r) {
+  let s = 0, g = [], b = [];
+  const kb = r.size;
+  if (kb < 500)        { s += 40; g.push('Extremely lean codebase'); }
+  else if (kb < 5000)  { s += 30; g.push('Lightweight repo'); }
+  else if (kb < 50000) { s += 18; g.push('Reasonable size'); }
+  else { b.push('Large repo — consider Git LFS or splitting'); }
+
+  if (r.forks_count > 10)    { s += 25; g.push('Widely forked'); }
+  if (r.stargazers_count > 20) { s += 20; g.push('Visible to the community'); }
+  if (r.open_issues_count < 5) { s += 15; g.push('Low issue overhead'); }
+  else { b.push('High issue count affects maintainability'); }
+  return mk(s, g, b);
 }
 
-function scoreInnovation(r,topics){
-  let s=0,g=[],b=[];
-  const age=(Date.now()-new Date(r.created_at))/86400000;
-  if(age<30){s+=30;g.push('Brand new project');}else if(age<180){s+=22;g.push('Fresh growing project');}else if(age<730){s+=14;g.push('Maturing project');}else{s+=8;g.push(`Established: ${Math.round(age/365*10)/10}yr`);}
-  if(topics.length>=5){s+=30;g.push(`${topics.length} topic tags`);}else if(topics.length>0){s+=18;g.push(`Topics: ${topics.join(', ')}`);}else{b.push('No topic tags');}
-  const st=r.stargazers_count;
-  if(st>=500){s+=40;g.push('Strong traction');}else if(st>=50){s+=28;g.push('Gaining visibility');}else if(st>=10){s+=15;}else{b.push('Limited visibility');}
-  return mk(s,g,b);
+function scoreInnovation(r, topics) {
+  let s = 0, g = [], b = [];
+  const ageDays = (Date.now() - new Date(r.created_at)) / 86400000;
+  if (ageDays < 30)   { s += 30; g.push('Brand new project'); }
+  else if (ageDays < 180) { s += 22; g.push('Fresh growing project'); }
+  else if (ageDays < 730) { s += 14; g.push('Maturing project'); }
+  else { s += 8; g.push(`Established: ${Math.round(ageDays/365 * 10)/10}yr old`); }
+
+  if (topics.length >= 5) { s += 30; g.push(`Well tagged: ${topics.slice(0,4).join(', ')}...`); }
+  else if (topics.length > 0) { s += 18; g.push(`Topics: ${topics.join(', ')}`); }
+  else { b.push('No topic tags — makes it hard to discover'); }
+
+  const stars = r.stargazers_count;
+  if (stars >= 500) { s += 40; g.push('Strong traction'); }
+  else if (stars >= 50) { s += 28; g.push('Gaining visibility'); }
+  else if (stars >= 10) { s += 15; g.push('Early traction'); }
+  else { b.push('Limited visibility — needs promotion'); }
+
+  return mk(s, g, b);
 }
 
-// ── Grade ───────────────────────────────────────────────────────
-function grade(s){
-  if(s>=85)return{letter:'A+',label:'Production Ready',c:'g'};
-  if(s>=75)return{letter:'A', label:'Almost There',    c:'g'};
-  if(s>=65)return{letter:'B', label:'Needs Attention', c:'b'};
-  if(s>=50)return{letter:'C', label:'Improvements Needed',c:'a'};
-  if(s>=35)return{letter:'D', label:'Not Production Safe',c:'a'};
-  return{letter:'F',label:'Critical Issues',c:'r'};
+// ── Grade & color ────────────────────────────────────────────────
+function getGrade(s) {
+  if (s >= 85) return { letter: 'A+', label: 'Production Ready', col: 'green' };
+  if (s >= 75) return { letter: 'A',  label: 'Almost There',     col: 'green' };
+  if (s >= 65) return { letter: 'B',  label: 'Needs Attention',  col: 'blue'  };
+  if (s >= 50) return { letter: 'C',  label: 'Improvements Needed', col: 'warn' };
+  if (s >= 35) return { letter: 'D',  label: 'Not Production Safe', col: 'warn' };
+  return { letter: 'F', label: 'Critical Issues', col: 'red' };
 }
 
-function dimCol(s){return s>=75?'g':s>=55?'b':s>=35?'a':'r';}
-function dimColVar(s){return s>=75?'var(--green)':s>=55?'var(--blue)':s>=35?'var(--amber)':'var(--red)';}
-
-// ── State ───────────────────────────────────────────────────────
-let currentSlug = '';
-let currentScore = 0;
-let currentDims = [];
+function dimColor(s) {
+  if (s >= 75) return 'green';
+  if (s >= 55) return 'blue';
+  if (s >= 35) return 'warn';
+  return 'red';
+}
 
 // ── Render ───────────────────────────────────────────────────────
 function render(repo, dims) {
-  currentDims = dims;
-  currentSlug = repo.full_name;
-
   document.getElementById('results').style.display = 'block';
 
-  const overall = Math.round(dims.reduce((a,d,i)=>a+d.score*WEIGHTS[i],0));
-  const capped  = dims.some(d=>d.score===0);
-  const final   = capped ? Math.min(overall,60) : overall;
-  currentScore = final;
+  const overall = Math.round(dims.reduce((a, d, i) => a + d.score * WEIGHTS[i], 0));
+  const capped  = dims.some(d => d.score === 0);
+  const final   = capped ? Math.min(overall, 60) : overall;
+  const { letter, label, col } = getGrade(final);
 
-  const g = grade(final);
-
-  // Ring animation
-  document.getElementById('score-band').setAttribute('data-score', final);
-  const circ = 2 * Math.PI * 52;
-  const offset = circ - (final/100)*circ;
-  const fill = document.getElementById('ring-fill');
-  fill.style.stroke = final>=75?'var(--green)':final>=55?'var(--blue)':final>=35?'var(--amber)':'var(--red)';
-  setTimeout(()=>{fill.style.strokeDashoffset = offset;},100);
-
+  // Score ring
+  document.getElementById('score-card').setAttribute('data-score', final);
+  const ring = document.getElementById('score-ring');
+  ring.className = `score-ring col-${col}`;
   document.getElementById('score-num').textContent = final;
-  document.getElementById('score-num').style.color = dimColVar(final);
-  document.getElementById('repo-name').textContent = repo.full_name;
-  document.getElementById('repo-desc').textContent = repo.description || 'No description provided';
 
-  const gb = document.getElementById('grade-badge');
-  gb.textContent = `${g.letter}  ${g.label}`;
-  gb.className = `grade-badge c${g.c} bg-${g.c}`;
-  if(capped) document.getElementById('cap-warn').style.display='block';
+  // Info
+  document.getElementById('repo-title').textContent = repo.full_name;
+  document.getElementById('repo-desc').textContent  = repo.description || 'No description provided';
+
+  const gt = document.getElementById('grade-tag');
+  gt.textContent = `${letter}  ${label}`;
+  gt.className = `grade-tag col-${col} bg-${col}`;
+
+  if (capped) document.getElementById('cap-warn').style.display = 'block';
 
   // Dimensions
-  const de = document.getElementById('dims');
-  de.innerHTML = '';
-  dims.forEach((d,i)=>{
-    const dc = dimCol(d.score);
-    const col = dimColVar(d.score);
-    const pct = Math.round(WEIGHTS[i]*100);
+  const dimsEl = document.getElementById('dims');
+  dimsEl.innerHTML = '';
+  dims.forEach((d, i) => {
+    const dc = dimColor(d.score);
+    const pct = Math.round(WEIGHTS[i] * 100);
     const card = document.createElement('div');
     card.className = 'dim-card';
-    card.style.setProperty('--dc', col);
-    card.querySelector ? null : null;
     card.innerHTML = `
-      <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:${col};border-radius:2px 0 0 2px"></div>
-      <div class="dim-head">
+      <div class="dim-header">
         <div class="dim-name">${DIM_NAMES[i]}</div>
-        <div class="dim-right">
-          <div class="dim-score-num" style="color:${col}">${d.score}</div>
-          <div class="dim-score-den">/100</div>
+        <div>
+          <div class="dim-pct col-${dc}">${d.score}</div>
+          <div class="dim-max">/100</div>
         </div>
       </div>
-      <div class="bar-track"><div class="bar-fill" id="bf${i}" style="width:0%;background:${col}"></div></div>
-      <div class="dim-meta">
-        <div class="dim-weight">Weight: ${pct}%</div>
-        <div class="dim-arrow" id="da${i}">▼</div>
-      </div>
-      <div class="dim-expand" id="dd${i}">
-        ${d.good.map(x=>`<div class="drow"><span class="drow-icon" style="color:var(--green)">✓</span><span style="color:var(--t2)">${x}</span></div>`).join('')}
-        ${d.bad.map(x=>`<div class="drow"><span class="drow-icon" style="color:var(--amber)">!</span><span style="color:var(--t2)">${x}</span></div>`).join('')}
+      <div class="bar-track"><div class="bar-fill fill-${dc}" id="bf${i}" style="width:0%"></div></div>
+      <div class="dim-weight">Weight: ${pct}%</div>
+      <div class="dim-details" id="dd${i}">
+        ${d.good.map(x => `<div class="detail-row"><span class="detail-icon col-green">✓</span><span style="color:var(--text2)">${x}</span></div>`).join('')}
+        ${d.bad.map(x  => `<div class="detail-row"><span class="detail-icon col-warn">!</span><span style="color:var(--text2)">${x}</span></div>`).join('')}
       </div>`;
-    card.onclick = ()=>{
-      const dd=document.getElementById('dd'+i);
-      const da=document.getElementById('da'+i);
-      dd.classList.toggle('open');
-      card.classList.toggle('open');
-    };
-    de.appendChild(card);
-    setTimeout(()=>{document.getElementById('bf'+i).style.width=d.score+'%';},100+i*70);
+    card.onclick = () => document.getElementById('dd' + i).classList.toggle('open');
+    dimsEl.appendChild(card);
+    setTimeout(() => { document.getElementById('bf' + i).style.width = d.score + '%'; }, 80 + i * 70);
   });
 
+  const re=document.getElementById('recs');re.innerHTML='';
+  const allBad=dims.flatMap((d,i)=>d.bad.map(b=>({dim:NAMES[i],msg:b,score:d.score}))).sort((a,b)=>a.score-b.score);
+  allBad.slice(0,6).forEach(item=>{
+    const p=item.score<40?['high','var(--danger)']:item.score<65?['medium','var(--warn)']:['low','var(--accent2)'];
+    const steps=getSteps(item.msg);
+    const el=document.createElement('div');el.className='rec';el.style.borderLeftColor=p[1];
+    el.innerHTML=`<div class="rec-top"><div class="rec-priority" style="color:${p[1]};border-color:${p[1]}">${p[0]} priority</div><div class="rec-title">${item.dim}</div></div><div class="rec-body">${item.msg}</div>${steps.length?`<div class="rec-steps">${steps.map(s=>`<div class="rec-step">${s}</div>`).join('')}</div>`:''}`;
+    re.appendChild(el);
   // Recommendations
-  renderRecs(dims);
+  const recsEl = document.getElementById('recs');
+  recsEl.innerHTML = '';
+  const allBad = dims.flatMap((d, i) => d.bad.map(msg => ({ dim: DIM_NAMES[i], msg, score: d.score })));
+  allBad.sort((a, b) => a.score - b.score);
 
-  // Badge
-  renderBadge(final, g);
-
-  // History
-  saveHistory(repo, final, g);
-  renderHistory();
-
-  // URL param
-  const url = new URL(window.location);
-  url.searchParams.set('repo', repo.full_name);
-  window.history.replaceState({}, '', url);
-
-  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function renderRecs(dims) {
-  const el = document.getElementById('recs');
-  el.innerHTML = '';
-  const allBad = dims.flatMap((d,i)=>d.bad.map(msg=>({dim:DIM_NAMES[i],msg,score:d.score}))).sort((a,b)=>a.score-b.score);
-  allBad.slice(0,8).forEach(item=>{
-    const isH=item.score<40,isM=item.score>=40&&item.score<65;
-    const p=isH?'high':isM?'medium':'low';
-    const pc=isH?'r':isM?'a':'b';
-    const pvar=isH?'var(--red)':isM?'var(--amber)':'var(--blue)';
-    const steps=getRec(item.msg);
-    const card=document.createElement('div');
-    card.className='rec-card';
-    card.style.borderLeftColor=pvar;
-    card.innerHTML=`
-      <div class="rec-head">
-        <div class="rec-priority c${pc} bg-${pc}">${p} priority</div>
+  allBad.slice(0, 7).forEach(item => {
+    const isHigh = item.score < 40;
+    const isMed  = item.score >= 40 && item.score < 65;
+    const p  = isHigh ? 'high'   : isMed ? 'medium' : 'low';
+    const pc = isHigh ? 'red'    : isMed ? 'warn'   : 'blue';
+    const steps = getRec(item.msg);
+    const el = document.createElement('div');
+    el.className = 'rec-card';
+    el.style.borderLeftColor = `var(--${pc === 'red' ? 'danger' : pc === 'warn' ? 'warn' : 'blue'})`;
+    el.innerHTML = `
+      <div class="rec-header">
+        <div class="priority-badge col-${pc} bg-${pc}">${p} priority</div>
         <div class="rec-title">${item.dim}</div>
       </div>
-      <div class="rec-body">${item.msg}</div>
-      ${steps.length?`<div class="rec-steps">${steps.map(s=>`<div class="rec-step">${s}</div>`).join('')}</div>`:''}`;
-    el.appendChild(card);
+      <div class="rec-msg">${item.msg}</div>
+      ${steps.length ? `<div class="rec-steps">${steps.map(s => `<div class="rec-step">${s}</div>`).join('')}</div>` : ''}`;
+    recsEl.appendChild(el);
   });
-}
-
-function renderBadge(score, g) {
-  const col = score>=75?'brightgreen':score>=55?'blue':score>=35?'yellow':'red';
-  const scoreEnc = encodeURIComponent(score+'/100');
-  const labelEnc = encodeURIComponent(g.label);
-  const url = `https://img.shields.io/badge/DeployWatch-${scoreEnc}%20${labelEnc}-${col}?style=flat-square&logo=github`;
-  const md = `![DeployWatch Score](${url})`;
-  document.getElementById('badge-preview').innerHTML = `<img src="${url}" alt="DeployWatch Score" style="height:22px"/>`;
-  document.getElementById('badge-code').textContent = md;
-}
-
-function copyBadge() {
-  const code = document.getElementById('badge-code').textContent;
-  navigator.clipboard.writeText(code).then(()=>{
-    const btn=document.querySelector('.copy-btn');
-    btn.textContent='Copied!';
-    setTimeout(()=>{btn.textContent='Copy Markdown';},2000);
-  });
-}
-
-// ── History (localStorage) ──────────────────────────────────────
-function saveHistory(repo, score, g) {
-  const hist = getHistory();
-  const entry = { slug: repo.full_name, score, grade: g.label, letter: g.letter, time: Date.now(), desc: repo.description||'' };
-  const idx = hist.findIndex(h=>h.slug===repo.full_name);
-  if(idx>=0) hist[idx]=entry; else hist.unshift(entry);
-  localStorage.setItem('dw_history', JSON.stringify(hist.slice(0,20)));
-}
-
-function getHistory() {
-  try { return JSON.parse(localStorage.getItem('dw_history')||'[]'); } catch { return []; }
-}
-
-function deleteHistory(slug) {
-  const hist = getHistory().filter(h=>h.slug!==slug);
-  localStorage.setItem('dw_history', JSON.stringify(hist));
-  renderHistory();
-}
-
-function renderHistory() {
-  const el = document.getElementById('hist-content');
-  const hist = getHistory();
-  if(!hist.length) {
-    el.innerHTML = '<div class="hist-empty">No scans yet. Analyze a repo and it will appear here.</div>';
-    return;
-  }
-  el.innerHTML = `<div class="hist-list">${hist.map(h=>{
-    const c=dimColVar(h.score);
-    const t=new Date(h.time).toLocaleString();
-    return `<div class="hist-item" onclick="loadHistory('${h.slug}')">
-      <div class="hist-score" style="color:${c}">${h.score}</div>
-      <div class="hist-info">
-        <div class="hist-repo">${h.slug}</div>
-        <div class="hist-time">${t}</div>
-      </div>
-      <div class="hist-grade" style="color:${c};border-color:${c}">${h.letter}</div>
-      <div class="hist-del" onclick="event.stopPropagation();deleteHistory('${h.slug}')">✕</div>
-    </div>`;
-  }).join('')}</div>`;
-}
-
-function loadHistory(slug) {
-  document.getElementById('url').value = 'https://github.com/'+slug;
-  showTab('dims');
-  analyze();
-}
-
-// ── Compare ─────────────────────────────────────────────────────
-async function runCompare() {
-  const s1 = parseUrl(document.getElementById('cmp1').value);
-  const s2 = parseUrl(document.getElementById('cmp2').value);
-  if(!s1||!s2){alert('Enter two valid GitHub repo URLs');return;}
-
-  const btn = document.getElementById('cmp-btn');
-  btn.disabled = true; btn.textContent = 'Comparing...';
-
-  try {
-    const [r1,r2] = await Promise.all([analyzeSlug(s1), analyzeSlug(s2)]);
-    renderCompare(r1, r2);
-  } catch(e) {
-    document.getElementById('compare-result').innerHTML=`<div class="error-row" style="display:block;margin-top:16px">Error: ${e.message}</div>`;
-  }
-
-  btn.disabled=false; btn.textContent='Compare Repos →';
-}
-
-async function analyzeSlug(slug) {
-  const repo = await gh(`/repos/${slug}`);
-  const [commits,langs,readme,pages,ci,sec] = await Promise.all([
-    gh(`/repos/${slug}/commits?per_page=100`).catch(()=>[]),
-    gh(`/repos/${slug}/languages`).catch(()=>({})),
-    gh(`/repos/${slug}/contents/README.md`).then(()=>true).catch(()=>false),
-    gh(`/repos/${slug}/pages`).then(()=>true).catch(()=>false),
-    gh(`/repos/${slug}/contents/.github/workflows`).then(()=>true).catch(()=>false),
-    gh(`/repos/${slug}/contents/SECURITY.md`).then(()=>true).catch(()=>false),
-  ]);
-  const dims=[
-    scoreActivity(repo,commits.length),scoreDoc(repo,readme,repo.has_wiki,pages),
-    scoreCode(repo,langs),scoreCommunity(repo),scoreReliability(repo,ci),
-    scoreSecurity(repo,sec),scorePerf(repo),scoreInnovation(repo,repo.topics||[]),
-  ];
-  const score=Math.round(dims.reduce((a,d,i)=>a+d.score*WEIGHTS[i],0));
-  return{repo,dims,score};
-}
-
-function renderCompare(a,b) {
-  const el=document.getElementById('compare-result');
-  const ga=grade(a.score), gb2=grade(b.score);
-  el.innerHTML=`
-    <div class="compare-grid">
-      ${renderCompareCol(a,ga)}
-      ${renderCompareCol(b,gb2)}
-    </div>`;
-  setTimeout(()=>{
-    document.querySelectorAll('.compare-dim-fill').forEach(f=>{
-      f.style.width=f.dataset.w+'%';
-    });
-  },100);
-}
-
-function renderCompareCol(data,g) {
-  const c=dimColVar(data.score);
-  return `<div class="compare-col">
-    <div class="compare-col-head">
-      <div class="compare-col-score" style="color:${c}">${data.score}</div>
-      <div>
-        <div class="compare-col-name">${data.repo.full_name}</div>
-        <div class="compare-col-grade">${g.letter} — ${g.label}</div>
-      </div>
-    </div>
-    <div class="compare-dim-list">
-      ${data.dims.map((d,i)=>{
-        const col=dimColVar(d.score);
-        return `<div class="compare-dim-row">
-          <div class="compare-dim-name">${DIM_NAMES[i].split(' ')[0]}</div>
-          <div class="compare-dim-score" style="color:${col}">${d.score}</div>
-          <div class="compare-dim-bar"><div class="compare-dim-fill" data-w="${d.score}" style="width:0%;background:${col}"></div></div>
-        </div>`;
-      }).join('')}
-    </div>
-  </div>`;
-}
-
-// ── Share ────────────────────────────────────────────────────────
-function shareRepo() {
-  const url = window.location.href;
-  navigator.clipboard.writeText(url).then(()=>{
-    const btn = document.querySelector('.action-btn.primary');
-    btn.textContent = '✅ Copied!';
-    setTimeout(()=>btn.innerHTML='🔗 Share',2000);
-  });
-}
-
-// ── Tabs ─────────────────────────────────────────────────────────
-function showTab(name) {
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  document.getElementById('panel-'+name).classList.add('active');
-  if(name==='history') renderHistory();
-}
-
-// ── Recommendations map ──────────────────────────────────────────
-function getRec(msg) {
-  const m=msg.toLowerCase();
-  if(m.includes('readme'))      return['Create README.md with clear description','Add installation & usage instructions','Include a demo screenshot or GIF'];
-  if(m.includes('ci/cd'))       return['Add .github/workflows/ci.yml','Run tests automatically on push','Add build status badge to README'];
-  if(m.includes('license'))     return['Add a LICENSE file (MIT recommended)','Use choosealicense.com'];
-  if(m.includes('security'))    return['Create SECURITY.md with reporting guide','Enable Dependabot in Settings → Security'];
-  if(m.includes('star'))        return['Share on Twitter/X and LinkedIn','Post on Reddit r/programming','Submit to Hacker News as Show HN'];
-  if(m.includes('topic'))       return['Click ⚙️ next to About on repo page','Add 5-10 relevant topics'];
-  if(m.includes('description')) return['Click ⚙️ next to About on repo page','Write a sharp one-liner about the project'];
-  if(m.includes('wiki'))        return['Enable Wiki in repo Settings','Document architecture and setup guides'];
-  if(m.includes('pages'))       return['Enable GitHub Pages in Settings','Create a landing page or docs site'];
-  if(m.includes('master'))      return['git branch -m master main','Update default branch in Settings'];
-  if(m.includes('fork'))        return['Add CONTRIBUTING.md','Label issues as "good first issue"'];
-  return [];
-}
-
-// ── Main analyze ─────────────────────────────────────────────────
-async function analyze() {
-  const input = document.getElementById('url').value;
-  const slug  = parseUrl(input);
-  if(!slug){showErr('Enter a valid GitHub URL like https://github.com/owner/repo');return;}
-
-  document.getElementById('err').style.display='none';
-  document.getElementById('results').style.display='none';
-  document.getElementById('cap-warn').style.display='none';
-  document.getElementById('btn').disabled=true;
-
-  try {
-    showStatus('Fetching repo info...');
-    const repo = await gh(`/repos/${slug}`);
-
-    showStatus('Loading commits & languages...');
-    const [commits,langs] = await Promise.all([
-      gh(`/repos/${slug}/commits?per_page=100`).catch(()=>[]),
-      gh(`/repos/${slug}/languages`).catch(()=>({})),
-    ]);
-
-    showStatus('Checking docs, CI & security...');
-    const [readme,pages,ci,sec] = await Promise.all([
-      gh(`/repos/${slug}/contents/README.md`).then(()=>true).catch(()=>false),
-      gh(`/repos/${slug}/pages`).then(()=>true).catch(()=>false),
-      gh(`/repos/${slug}/contents/.github/workflows`).then(()=>true).catch(()=>false),
-      gh(`/repos/${slug}/contents/SECURITY.md`).then(()=>true).catch(()=>false),
-    ]);
-
-    showStatus('Calculating scores...');
-    const dims=[
-      scoreActivity(repo,commits.length),scoreDoc(repo,readme,repo.has_wiki,pages),
-      scoreCode(repo,langs),scoreCommunity(repo),scoreReliability(repo,ci),
-      scoreSecurity(repo,sec),scorePerf(repo),scoreInnovation(repo,repo.topics||[]),
-    ];
-
-    hideStatus();
-    document.getElementById('btn').disabled=false;
-    render(repo,dims);
-  } catch(e) {
-    if(e.message.includes('404'))showErr('Repo not found — make sure it\'s public');
-    else if(e.message.includes('403'))showErr('GitHub rate limit hit — add your token above to get 5000 req/hr');
-    else showErr(e.message);
-  }
 }
 
 function showStatus(m){document.getElementById('status').style.display='flex';document.getElementById('stxt').textContent=m;}
 function hideStatus(){document.getElementById('status').style.display='none';}
 function showErr(m){hideStatus();const e=document.getElementById('err');e.style.display='block';e.textContent='// error: '+m;document.getElementById('btn').disabled=false;}
 
-// ── Auto-load from URL param ─────────────────────────────────────
-window.addEventListener('load', ()=>{
-  const params = new URLSearchParams(window.location.search);
-  const repo = params.get('repo');
-  if(repo){
-    document.getElementById('url').value='https://github.com/'+repo;
-    analyze();
-  }
-  renderHistory();
-});
+async function run(){
+  const input=document.getElementById('url').value;
+  const slug=parseUrl(input);
+  if(!slug){showErr('Enter a valid GitHub URL like https://github.com/owner/repo');return;}
+  document.getElementById('err').style.display='none';
+  document.getElementById('results').style.display='none';
+  document.getElementById('btn').disabled=true;
+  try{
+    showStatus('Fetching repo info...');
+    const repo=await gh(`/repos/${slug}`);
+    showStatus('Fetching commits & languages...');
+    const[commits,langs]= await Promise.all([gh(`/repos/${slug}/commits?per_page=100`).catch(()=>[]),gh(`/repos/${slug}/languages`).catch(()=>({}))]);
+    showStatus('Checking docs & CI...');
+    const[readme,pages,ci,sec]=await Promise.all([
+      gh(`/repos/${slug}/contents/README.md`).then(()=>true).catch(()=>false),
+      gh(`/repos/${slug}/pages`).then(()=>true).catch(()=>false),
+      gh(`/repos/${slug}/contents/.github/workflows`).then(()=>true).catch(()=>false),
+      gh(`/repos/${slug}/contents/SECURITY.md`).then(()=>true).catch(()=>false),
+function getRec(msg) {
+  const m = msg.toLowerCase();
+  if (m.includes('readme'))      return ['Create README.md with a clear description', 'Add installation and usage instructions', 'Include a demo screenshot or GIF'];
+  if (m.includes('ci/cd'))       return ['Create .github/workflows/ci.yml', 'Run tests automatically on every push', 'Add a build status badge to README'];
+  if (m.includes('license'))     return ['Add a LICENSE file (MIT recommended)', 'Use choosealicense.com to pick the right one'];
+  if (m.includes('security'))    return ['Create SECURITY.md with a reporting guide', 'Enable Dependabot in repo Settings → Security'];
+  if (m.includes('star'))        return ['Share on Twitter/X and LinkedIn', 'Post on Reddit r/programming or r/github', 'Submit to Hacker News as Show HN'];
+  if (m.includes('topic'))       return ['Go to repo page → click ⚙️ next to About', 'Add 5-10 relevant topics (language, use case, stack)'];
+  if (m.includes('description')) return ['Click ⚙️ next to About on the repo main page', 'Write a sharp one-liner about what the project does'];
+  if (m.includes('wiki'))        return ['Enable Wiki in repo Settings', 'Document architecture decisions and guides there'];
+  if (m.includes('pages'))       return ['Enable GitHub Pages in repo Settings', 'Create a landing page or documentation site'];
+  if (m.includes('branch'))      return ['Rename master to main: git branch -m master main', 'Push and update the default branch in Settings'];
+  if (m.includes('fork'))        return ['Promote the project to get external contributors', 'Write a CONTRIBUTING.md to guide new contributors'];
+  return [];
+}
 
-document.getElementById('url').addEventListener('keydown',e=>{if(e.key==='Enter')analyze();});
+// ── UI helpers ───────────────────────────────────────────────────
+function showStatus(msg) {
+  document.getElementById('status').style.display = 'flex';
+  document.getElementById('stxt').textContent = msg;
+}
+
+function hideStatus() { document.getElementById('status').style.display = 'none'; }
+
+function showErr(msg) {
+  hideStatus();
+  const e = document.getElementById('err');
+  e.style.display = 'block';
+  e.textContent = '// error: ' + msg;
+  document.getElementById('btn').disabled = false;
+}
+
+// ── Main ─────────────────────────────────────────────────────────
+async function run() {
+  const input = document.getElementById('url').value;
+  const slug  = parseUrl(input);
+  if (!slug) { showErr('Enter a valid GitHub URL — e.g. https://github.com/owner/repo'); return; }
+
+  document.getElementById('err').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('cap-warn').style.display = 'none';
+  document.getElementById('btn').disabled = true;
+
+  try {
+    showStatus('Fetching repo info from GitHub...');
+    const repo = await ghGet(`/repos/${slug}`);
+
+    showStatus('Loading commits and languages...');
+    const [commits, langs] = await Promise.all([
+      ghGet(`/repos/${slug}/commits?per_page=100`).catch(() => []),
+      ghGet(`/repos/${slug}/languages`).catch(() => ({})),
+    ]);
+
+    showStatus('Checking docs, CI, and security...');
+    const [readme, pages, ci, sec] = await Promise.all([
+      ghGet(`/repos/${slug}/contents/README.md`).then(() => true).catch(() => false),
+      ghGet(`/repos/${slug}/pages`).then(() => true).catch(() => false),
+      ghGet(`/repos/${slug}/contents/.github/workflows`).then(() => true).catch(() => false),
+      ghGet(`/repos/${slug}/contents/SECURITY.md`).then(() => true).catch(() => false),
+    ]);
+
+    showStatus('Calculating scores...');
+    const dims=[
+      scoreActivity(repo,commits.length),
+      scoreDoc(repo,readme,repo.has_wiki,pages),
+      scoreCode(repo,langs),
+    const dims = [
+      scoreActivity(repo, commits.length),
+      scoreDoc(repo, readme, repo.has_wiki, pages),
+      scoreCode(repo, langs),
+      scoreCommunity(repo),
+      scoreReliability(repo,ci),
+      scoreSecurity(repo,sec),
+      scoreReliability(repo, ci),
+      scoreSecurity(repo, sec),
+      scorePerf(repo),
+      scoreInnovation(repo,repo.topics||[]),
+      scoreInnovation(repo, repo.topics || []),
+    ];
+    hideStatus();document.getElementById('btn').disabled=false;
+    render(repo,dims);
+  }catch(e){
+    if(e.message.includes('404'))showErr('Repo not found — make sure it\'s public');
+    else if(e.message.includes('403'))showErr('GitHub rate limit hit — wait a minute and try again');
+
+    hideStatus();
+    document.getElementById('btn').disabled = false;
+    render(repo, dims);
+
+  } catch (e) {
+    if (e.message.includes('404')) showErr('Repo not found — make sure it\'s public and the URL is correct');
+    else if (e.message.includes('403')) showErr('GitHub API rate limit hit — wait 60 seconds and try again');
+    else showErr(e.message);
+  }
+}
+document.getElementById('url').addEventListener('keydown',e=>{if(e.key==='Enter')run();});
+
+document.getElementById('url').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
 </script>
 </body>
 </html>
