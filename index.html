@@ -1,1186 +1,1375 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>DeployWatch — Production Readiness Agent</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeployWatch — Production Readiness Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #03050A;
-  --s1: #080C14;
-  --s2: #0C1120;
-  --s3: #111827;
-  --border: #1A2235;
-  --border2: #243047;
-  --green: #00E87A;
-  --green2: #00FF88;
-  --blue: #38BEFF;
-  --amber: #FFB020;
-  --red: #FF4545;
-  --purple: #A78BFA;
-  --text: #E2E8F5;
-  --t2: #8899B4;
-  --t3: #4A5568;
-  --display: 'Bebas Neue', sans-serif;
-  --body: 'DM Sans', sans-serif;
-  --mono: 'DM Mono', monospace;
-}
-
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-html { scroll-behavior: smooth; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--body);
-  font-size: 16px;
-  line-height: 1.6;
-  min-height: 100vh;
-  overflow-x: hidden;
-}
-
-/* Background effects */
-.bg-effects {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  overflow: hidden;
-}
-
-.orb {
-  position: absolute; border-radius: 50%;
-  filter: blur(80px); opacity: 0.12;
-}
-.orb-1 { width: 600px; height: 600px; background: var(--green); top: -200px; left: -100px; animation: drift1 18s ease-in-out infinite; }
-.orb-2 { width: 500px; height: 500px; background: var(--blue); top: 200px; right: -150px; animation: drift2 22s ease-in-out infinite; }
-.orb-3 { width: 400px; height: 400px; background: var(--purple); bottom: -100px; left: 30%; animation: drift3 16s ease-in-out infinite; }
-
-@keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(60px,40px)} }
-@keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-40px,60px)} }
-@keyframes drift3 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(30px,-50px)} }
-
-.grid-overlay {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image: linear-gradient(rgba(56,190,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(56,190,255,0.03) 1px, transparent 1px);
-  background-size: 52px 52px;
-}
-
-/* Layout */
-.page { position: relative; z-index: 1; }
-.wrap { max-width: 960px; margin: 0 auto; padding: 0 32px; }
-
-/* ── NAV ── */
-nav {
-  padding: 24px 0;
-  display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-}
-
-.nav-logo {
-  display: flex; align-items: center; gap: 12px;
-  font-family: var(--display);
-  font-size: 28px; letter-spacing: 2px;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.logo-badge {
-  width: 32px; height: 32px;
-  background: linear-gradient(135deg, var(--green), var(--blue));
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; color: #000; font-weight: 700; font-family: var(--body);
-}
-
-.nav-links { display: flex; align-items: center; gap: 6px; }
-
-.nav-chip {
-  font-family: var(--mono); font-size: 11px;
-  padding: 5px 12px; border-radius: 20px;
-  border: 1px solid var(--border2); color: var(--t2);
-  transition: all 0.2s; cursor: pointer; text-decoration: none;
-}
-.nav-chip:hover { border-color: var(--green); color: var(--green); }
-.nav-chip.active { background: rgba(0,232,122,0.1); border-color: var(--green); color: var(--green); }
-
-/* ── HERO ── */
-.hero {
-  padding: 80px 0 60px;
-  display: grid; grid-template-columns: 1fr 340px; gap: 60px; align-items: center;
-}
-
-.hero-left {}
-
-.hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-family: var(--mono); font-size: 12px; color: var(--green);
-  background: rgba(0,232,122,0.08); border: 1px solid rgba(0,232,122,0.2);
-  padding: 6px 14px; border-radius: 20px; margin-bottom: 28px;
-}
-
-.pulse-dot {
-  width: 7px; height: 7px; background: var(--green); border-radius: 50%;
-  box-shadow: 0 0 8px var(--green);
-  animation: pdot 2s ease-in-out infinite;
-}
-@keyframes pdot { 0%,100%{opacity:1;box-shadow:0 0 6px var(--green)} 50%{opacity:.7;box-shadow:0 0 14px var(--green)} }
-
-.hero h1 {
-  font-family: var(--display);
-  font-size: clamp(52px, 7vw, 88px);
-  line-height: 0.92;
-  letter-spacing: 2px;
-  margin-bottom: 24px;
-}
-
-.hero h1 .hl {
-  background: linear-gradient(90deg, var(--green), var(--blue));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-}
-
-.hero-desc {
-  font-size: 18px; color: var(--t2); line-height: 1.7;
-  max-width: 460px; margin-bottom: 36px; font-weight: 300;
-}
-
-.hero-stats {
-  display: flex; gap: 28px;
-}
-
-.hstat { border-left: 2px solid var(--border2); padding-left: 16px; }
-.hstat-num { font-family: var(--display); font-size: 32px; letter-spacing: 1px; line-height: 1; }
-.hstat-lbl { font-family: var(--mono); font-size: 11px; color: var(--t3); margin-top: 2px; letter-spacing: 0.5px; }
-
-/* Hero right — score preview card */
-.hero-card {
-  background: var(--s1);
-  border: 1px solid var(--border2);
-  border-radius: 16px;
-  padding: 24px;
-  position: relative; overflow: hidden;
-}
-
-.hero-card::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--green), var(--blue));
-}
-
-.hcard-label { font-family: var(--mono); font-size: 10px; color: var(--t3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
-
-.hcard-score {
-  display: flex; align-items: flex-end; gap: 8px; margin-bottom: 20px;
-}
-.hcard-num { font-family: var(--display); font-size: 72px; line-height: 1; color: var(--green); }
-.hcard-den { font-family: var(--mono); font-size: 16px; color: var(--t3); margin-bottom: 8px; }
-
-.hcard-grade {
-  display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 500;
-  padding: 4px 12px; border-radius: 20px; margin-bottom: 20px;
-  background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.3); color: var(--green);
-}
-
-.hcard-bars { display: flex; flex-direction: column; gap: 8px; }
-
-.hbar { display: flex; flex-direction: column; gap: 4px; }
-.hbar-top { display: flex; justify-content: space-between; }
-.hbar-name { font-size: 12px; color: var(--t2); }
-.hbar-val { font-family: var(--mono); font-size: 11px; color: var(--t3); }
-.hbar-track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.hbar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--green), var(--blue)); }
-
-/* ── ANALYZE BOX ── */
-.analyze-section { padding: 0 0 48px; }
-
-.analyze-box {
-  background: var(--s1);
-  border: 1px solid var(--border2);
-  border-radius: 16px;
-  padding: 32px;
-  position: relative; overflow: hidden;
-}
-
-.analyze-box::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--green), var(--blue), var(--purple));
-}
-
-.analyze-title {
-  font-family: var(--display);
-  font-size: 22px; letter-spacing: 1px;
-  color: var(--text); margin-bottom: 6px;
-}
-
-.analyze-sub { font-size: 14px; color: var(--t2); margin-bottom: 24px; }
-
-.input-group { display: flex; gap: 10px; margin-bottom: 16px; }
-
-.repo-input {
-  flex: 1;
-  background: var(--bg);
-  border: 1.5px solid var(--border2);
-  border-radius: 10px;
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 14px;
-  padding: 15px 20px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.repo-input::placeholder { color: var(--t3); }
-.repo-input:focus {
-  border-color: rgba(0,232,122,0.5);
-  box-shadow: 0 0 0 4px rgba(0,232,122,0.05);
-}
-
-.run-btn {
-  background: linear-gradient(135deg, var(--green), #00CC6A);
-  color: #030804;
-  border: none; border-radius: 10px;
-  font-family: var(--body); font-weight: 600; font-size: 15px;
-  padding: 15px 32px;
-  cursor: pointer; white-space: nowrap;
-  transition: all 0.2s;
-  display: flex; align-items: center; gap: 8px;
-}
-.run-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,232,122,0.3); }
-.run-btn:active { transform: translateY(0); }
-.run-btn:disabled { background: var(--s3); color: var(--t3); cursor: not-allowed; transform: none; box-shadow: none; }
-
-.input-tags {
-  display: flex; flex-wrap: wrap; gap: 6px;
-}
-
-.itag {
-  font-family: var(--mono); font-size: 11px;
-  padding: 3px 10px; border-radius: 20px;
-  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-  color: var(--t3);
-}
-
-/* Status / error */
-.status-row {
-  display: none; align-items: center; gap: 12px;
-  background: rgba(56,190,255,0.06); border: 1px solid rgba(56,190,255,0.2);
-  border-radius: 8px; padding: 14px 18px; margin-top: 16px;
-  font-family: var(--mono); font-size: 13px; color: var(--blue);
-}
-.spin { width: 16px; height: 16px; border: 2px solid rgba(56,190,255,0.25); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.65s linear infinite; flex-shrink: 0; }
-@keyframes spin { to{transform:rotate(360deg)} }
-
-.error-row {
-  display: none;
-  background: rgba(255,69,69,0.06); border: 1px solid rgba(255,69,69,0.2);
-  border-radius: 8px; padding: 14px 18px; margin-top: 16px;
-  font-family: var(--mono); font-size: 13px; color: var(--red);
-}
-
-/* ── RESULTS ── */
-#results { display: none; animation: riseUp 0.6s cubic-bezier(0.16,1,0.3,1); }
-@keyframes riseUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-
-.results-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 4px; padding: 0;
-}
-
-.section-head {
-  font-family: var(--display);
-  font-size: 13px; letter-spacing: 3px;
-  color: var(--t3); text-transform: uppercase;
-  display: flex; align-items: center; gap: 10px;
-  margin: 32px 0 14px;
-}
-.section-head::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-/* Score band */
-.score-band {
-  background: var(--s1);
-  border: 1px solid var(--border2);
-  border-radius: 16px;
-  padding: 32px 36px;
-  display: grid;
-  grid-template-columns: 120px 1fr auto;
-  gap: 32px; align-items: center;
-  position: relative; overflow: hidden;
-}
-
-.score-band::before {
-  content: attr(data-score);
-  position: absolute; right: -10px; bottom: -30px;
-  font-family: var(--display); font-size: 200px; opacity: 0.04;
-  line-height: 1; pointer-events: none; color: var(--text);
-}
-
-.score-ring-wrap {
-  width: 120px; height: 120px; position: relative; flex-shrink: 0;
-}
-
-.score-ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-
-.score-ring-bg { fill: none; stroke: var(--border); stroke-width: 6; }
-.score-ring-fill { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1); }
-
-.score-ring-text {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-}
-
-.score-ring-num { font-family: var(--display); font-size: 38px; line-height: 1; letter-spacing: 1px; }
-.score-ring-den { font-family: var(--mono); font-size: 12px; color: var(--t3); }
-
-.score-info h2 { font-family: var(--display); font-size: 28px; letter-spacing: 1px; margin-bottom: 6px; }
-.score-info .desc { font-size: 15px; color: var(--t2); margin-bottom: 14px; font-weight: 300; }
-
-.grade-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 14px; font-weight: 600; padding: 7px 18px;
-  border-radius: 24px; border: 1.5px solid;
-  font-family: var(--body);
-}
-
-.cap-warn {
-  display: none; margin-top: 10px;
-  font-family: var(--mono); font-size: 12px; color: var(--red);
-  background: rgba(255,69,69,0.06); border: 1px solid rgba(255,69,69,0.2);
-  padding: 6px 12px; border-radius: 6px;
-}
-
-.score-actions { display: flex; flex-direction: column; gap: 8px; }
-
-.action-btn {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--body); font-size: 13px; font-weight: 500;
-  padding: 10px 16px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--border2); background: var(--s2); color: var(--t2);
-  transition: all 0.2s; white-space: nowrap;
-}
-.action-btn:hover { border-color: var(--border2); background: var(--s3); color: var(--text); }
-.action-btn.primary { background: rgba(0,232,122,0.1); border-color: rgba(0,232,122,0.3); color: var(--green); }
-.action-btn.primary:hover { background: rgba(0,232,122,0.18); }
-
-/* ── TABS ── */
-.tabs { display: flex; gap: 2px; margin-bottom: 16px; background: var(--s1); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
-.tab { flex: 1; text-align: center; padding: 9px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--t3); transition: all 0.2s; }
-.tab.active { background: var(--s3); color: var(--text); }
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
-
-/* ── DIM GRID ── */
-.dim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
-
-.dim-card {
-  background: var(--s1); border: 1px solid var(--border);
-  border-radius: 10px; padding: 20px 22px;
-  cursor: pointer; transition: border-color 0.2s;
-  position: relative; overflow: hidden;
-}
-.dim-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; }
-.dim-card:hover { border-color: var(--border2); }
-
-.dim-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
-.dim-name { font-size: 14px; font-weight: 600; line-height: 1.3; flex: 1; padding-right: 12px; }
-.dim-right { text-align: right; flex-shrink: 0; }
-.dim-score-num { font-family: var(--display); font-size: 28px; letter-spacing: 1px; line-height: 1; }
-.dim-score-den { font-family: var(--mono); font-size: 11px; color: var(--t3); }
-
-.bar-track { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
-.bar-fill { height: 100%; border-radius: 2px; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
-
-.dim-meta { display: flex; justify-content: space-between; }
-.dim-weight { font-family: var(--mono); font-size: 10px; color: var(--t3); }
-.dim-arrow { font-size: 11px; color: var(--t3); transition: transform 0.2s; }
-.dim-card.open .dim-arrow { transform: rotate(180deg); }
-
-.dim-expand { display: none; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
-.dim-expand.open { display: block; }
-
-.drow { display: flex; gap: 8px; padding: 3px 0; font-size: 13px; line-height: 1.4; align-items: flex-start; }
-.drow-icon { flex-shrink: 0; font-size: 11px; margin-top: 2px; }
-
-/* ── RECOMMENDATIONS ── */
-.rec-list { display: flex; flex-direction: column; gap: 3px; }
-
-.rec-card {
-  background: var(--s1); border: 1px solid var(--border);
-  border-radius: 10px; border-left: 3px solid; padding: 20px 24px;
-}
-
-.rec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-
-.rec-priority {
-  font-family: var(--mono); font-size: 10px; font-weight: 500;
-  padding: 3px 10px; border-radius: 20px; border: 1px solid;
-  text-transform: uppercase; letter-spacing: 0.5px;
-}
-
-.rec-title { font-size: 15px; font-weight: 600; }
-.rec-body { font-size: 14px; color: var(--t2); line-height: 1.65; margin-bottom: 10px; }
-.rec-steps { display: flex; flex-direction: column; gap: 4px; }
-.rec-step { font-family: var(--mono); font-size: 12px; color: var(--t3); padding-left: 16px; position: relative; line-height: 1.5; }
-.rec-step::before { content: '→'; position: absolute; left: 0; color: var(--green); }
-
-/* ── HISTORY ── */
-.hist-empty { text-align: center; padding: 40px; font-family: var(--mono); font-size: 13px; color: var(--t3); }
-.hist-list { display: flex; flex-direction: column; gap: 3px; }
-
-.hist-item {
-  background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
-  padding: 16px 20px; display: flex; align-items: center; gap: 16px;
-  cursor: pointer; transition: border-color 0.2s;
-}
-.hist-item:hover { border-color: var(--border2); }
-
-.hist-score {
-  font-family: var(--display); font-size: 32px; letter-spacing: 1px;
-  line-height: 1; width: 60px; flex-shrink: 0;
-}
-.hist-info { flex: 1; }
-.hist-repo { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-.hist-time { font-family: var(--mono); font-size: 11px; color: var(--t3); }
-.hist-grade { font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 20px; border: 1px solid; }
-.hist-del { font-size: 16px; color: var(--t3); cursor: pointer; padding: 4px; transition: color 0.2s; }
-.hist-del:hover { color: var(--red); }
-
-/* ── COMPARE ── */
-.compare-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-.compare-input {
-  background: var(--bg); border: 1.5px solid var(--border2); border-radius: 10px;
-  color: var(--text); font-family: var(--mono); font-size: 13px;
-  padding: 12px 16px; outline: none; width: 100%; transition: border-color 0.2s;
-}
-.compare-input::placeholder { color: var(--t3); }
-.compare-input:focus { border-color: rgba(56,190,255,0.5); }
-
-.compare-btn {
-  background: rgba(56,190,255,0.1); border: 1px solid rgba(56,190,255,0.3);
-  color: var(--blue); border-radius: 10px; padding: 12px 28px;
-  font-family: var(--body); font-size: 14px; font-weight: 600;
-  cursor: pointer; transition: all 0.2s;
-}
-.compare-btn:hover { background: rgba(56,190,255,0.18); }
-.compare-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 16px; }
-
-.compare-col {
-  background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
-  overflow: hidden;
-}
-
-.compare-col-head {
-  padding: 16px 20px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 12px;
-}
-
-.compare-col-score { font-family: var(--display); font-size: 36px; letter-spacing: 1px; }
-.compare-col-name { font-size: 14px; font-weight: 600; }
-.compare-col-grade { font-family: var(--mono); font-size: 11px; color: var(--t3); }
-
-.compare-dim-list { padding: 12px; display: flex; flex-direction: column; gap: 6px; }
-.compare-dim-row { display: flex; align-items: center; gap: 10px; }
-.compare-dim-name { font-size: 12px; color: var(--t2); flex: 1; }
-.compare-dim-score { font-family: var(--mono); font-size: 12px; font-weight: 500; width: 32px; text-align: right; }
-.compare-dim-bar { flex: 2; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.compare-dim-fill { height: 100%; border-radius: 2px; transition: width 1s cubic-bezier(0.4,0,0.2,1); }
-
-/* ── BADGE ── */
-.badge-section {
-  background: var(--s1); border: 1px solid var(--border); border-radius: 10px;
-  padding: 24px;
-}
-.badge-preview { margin: 16px 0; }
-.badge-preview img { border-radius: 4px; }
-.badge-code {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-  padding: 14px 16px; font-family: var(--mono); font-size: 12px; color: var(--t2);
-  word-break: break-all; line-height: 1.6;
-}
-.copy-btn {
-  margin-top: 10px; font-family: var(--body); font-size: 13px; font-weight: 500;
-  padding: 8px 18px; border-radius: 7px; cursor: pointer;
-  background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.3); color: var(--green);
-  transition: all 0.2s;
-}
-.copy-btn:hover { background: rgba(0,232,122,0.18); }
-
-/* ── FOOTER ── */
-footer {
-  border-top: 1px solid var(--border); padding: 28px 0; margin-top: 64px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-footer p { font-family: var(--mono); font-size: 12px; color: var(--t3); }
-footer a { color: var(--green); text-decoration: none; }
-
-/* Colors */
-.cg { color: var(--green); border-color: var(--green); }
-.cb { color: var(--blue);  border-color: var(--blue);  }
-.ca { color: var(--amber); border-color: var(--amber); }
-.cr { color: var(--red);   border-color: var(--red);   }
-.fg { background: var(--green); }
-.fb { background: var(--blue); }
-.fa { background: var(--amber); }
-.fr { background: var(--red); }
-.bg-g { background: rgba(0,232,122,0.08);  border-color: rgba(0,232,122,0.25); }
-.bg-b { background: rgba(56,190,255,0.08); border-color: rgba(56,190,255,0.25); }
-.bg-a { background: rgba(255,176,32,0.08); border-color: rgba(255,176,32,0.25); }
-.bg-r { background: rgba(255,69,69,0.08);  border-color: rgba(255,69,69,0.25);  }
-
-@media(max-width:720px) {
-  .hero { grid-template-columns: 1fr; }
-  .hero-card { display: none; }
-  .score-band { grid-template-columns: 1fr; }
-  .dim-grid, .compare-grid, .compare-inputs { grid-template-columns: 1fr; }
-  .input-group { flex-direction: column; }
-  .score-actions { flex-direction: row; flex-wrap: wrap; }
-}
+  :root {
+    --bg: #03050A;
+    --surface: #0C0F17;
+    --surface2: #111520;
+    --border: rgba(255,255,255,0.07);
+    --green: #00E87A;
+    --blue: #38BEFF;
+    --amber: #FFB020;
+    --red: #FF4545;
+    --purple: #A855F7;
+    --text: #E8EDF5;
+    --muted: #6B7280;
+    --grid-size: 52px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Grid overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: var(--grid-size) var(--grid-size);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Animated orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.18;
+    pointer-events: none;
+    z-index: 0;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 600px; height: 600px; background: var(--green); top: -200px; left: -150px; animation-duration: 20s; }
+  .orb-2 { width: 500px; height: 500px; background: var(--blue); top: 30%; right: -150px; animation-duration: 25s; animation-delay: -8s; }
+  .orb-3 { width: 400px; height: 400px; background: var(--purple); bottom: -100px; left: 30%; animation-duration: 22s; animation-delay: -4s; }
+
+  @keyframes drift {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(40px, 60px) scale(1.1); }
+  }
+
+  /* Layout */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* Nav */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(3,5,10,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+  }
+  .nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--green), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .logo span { color: var(--muted); -webkit-text-fill-color: var(--muted); font-size: 18px; }
+  .nav-chips { display: flex; gap: 8px; align-items: center; }
+  .nav-chip {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .nav-chip:hover, .nav-chip.active {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(0,232,122,0.08);
+  }
+
+  /* Hero */
+  .hero {
+    padding: 80px 0 60px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+  }
+  .hero-left {}
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(0,232,122,0.3);
+    background: rgba(0,232,122,0.06);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+  .hero-tag::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+
+  .hero h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    line-height: 0.9;
+    letter-spacing: 3px;
+    margin-bottom: 20px;
+  }
+  .hero h1 em {
+    font-style: normal;
+    background: linear-gradient(135deg, var(--green) 0%, var(--blue) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.7;
+    max-width: 420px;
+    margin-bottom: 36px;
+  }
+
+  /* Input group */
+  .input-group {
+    display: flex;
+    gap: 10px;
+    max-width: 520px;
+  }
+  .url-input {
+    flex: 1;
+    padding: 13px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .url-input:focus { border-color: var(--green); }
+  .url-input::placeholder { color: var(--muted); }
+
+  .btn {
+    padding: 13px 24px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--green);
+    color: #000;
+  }
+  .btn-primary:hover { background: #00ff88; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,232,122,0.3); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--blue); color: var(--blue); }
+
+  /* Sample card (hero right) */
+  .hero-right { display: flex; justify-content: center; }
+  .sample-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    width: 320px;
+    position: relative;
+    overflow: hidden;
+  }
+  .sample-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--green), var(--blue), var(--purple));
+  }
+  .sample-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+  .sample-repo-name { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--blue); }
+  .sample-grade {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    background: rgba(0,232,122,0.15);
+    color: var(--green);
+    border: 1px solid rgba(0,232,122,0.3);
+  }
+  .sample-ring-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+  .sample-bars { display: flex; flex-direction: column; gap: 8px; }
+  .sample-bar-row { display: flex; gap: 10px; align-items: center; }
+  .sample-bar-label { font-size: 10px; color: var(--muted); width: 80px; flex-shrink: 0; font-family: 'DM Mono', monospace; }
+  .sample-bar-track { flex: 1; height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  .sample-bar-fill { height: 100%; border-radius: 2px; }
+  .sample-bar-score { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); width: 24px; text-align: right; }
+
+  /* Status message */
+  .status-bar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 24px 0;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .status-bar.visible { display: flex; }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(0,232,122,0.2);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-bar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: rgba(255,69,69,0.08);
+    border: 1px solid rgba(255,69,69,0.3);
+    border-radius: 10px;
+    margin: 24px 0;
+    font-size: 13px;
+    color: var(--red);
+  }
+  .error-bar.visible { display: flex; }
+
+  /* Results section */
+  #results { display: none; }
+  #results.visible { display: block; }
+
+  /* Score header */
+  .score-header {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    padding: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .score-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--green), var(--blue));
+  }
+  .score-ring-wrap { flex-shrink: 0; }
+  .score-info { flex: 1; }
+  .score-repo-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+  .score-repo-desc { color: var(--muted); font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+  .score-meta { display: flex; gap: 20px; flex-wrap: wrap; }
+  .score-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .score-meta-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .score-actions { display: flex; gap: 10px; flex-shrink: 0; flex-direction: column; }
+
+  /* Grade badge */
+  .grade-badge {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    letter-spacing: 2px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    text-align: center;
+    line-height: 1;
+  }
+  .grade-badge small {
+    display: block;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    margin-top: 4px;
+  }
+
+  /* Tabs */
+  .tabs-nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .tab-btn.active {
+    background: var(--surface2);
+    color: var(--green);
+    border: 1px solid rgba(0,232,122,0.2);
+  }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Dimension cards grid */
+  .dim-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .dim-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .dim-card:hover { border-color: rgba(255,255,255,0.15); }
+  .dim-card-inner { display: flex; gap: 0; }
+  .dim-accent { width: 3px; flex-shrink: 0; }
+  .dim-body { flex: 1; padding: 18px; }
+  .dim-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .dim-name { font-weight: 600; font-size: 13px; }
+  .dim-weight { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .dim-score-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .dim-score-num { font-family: 'Bebas Neue', sans-serif; font-size: 32px; line-height: 1; }
+  .dim-score-of { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .dim-progress-track {
+    height: 5px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .dim-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    width: 0%;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .dim-checks {
+    display: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .dim-checks.open { display: flex; }
+  .check-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .check-icon { font-size: 13px; flex-shrink: 0; }
+  .check-pass { color: var(--green); }
+  .check-fail { color: var(--amber); }
+
+  /* Recommendations */
+  .rec-list { display: flex; flex-direction: column; gap: 14px; }
+  .rec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .rec-header { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .priority-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .priority-high { background: rgba(255,69,69,0.15); color: var(--red); border: 1px solid rgba(255,69,69,0.3); }
+  .priority-medium { background: rgba(255,176,32,0.15); color: var(--amber); border: 1px solid rgba(255,176,32,0.3); }
+  .priority-low { background: rgba(56,190,255,0.12); color: var(--blue); border: 1px solid rgba(56,190,255,0.3); }
+  .rec-dim-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .rec-issue { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .rec-steps { display: flex; flex-direction: column; gap: 5px; }
+  .rec-step { font-size: 13px; color: var(--muted); display: flex; gap: 8px; }
+  .rec-step-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--green); flex-shrink: 0; margin-top: 1px; }
+
+  /* Compare tab */
+  .compare-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .compare-col { }
+  .compare-col label { display: block; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .compare-results { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .compare-card-name { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--blue); margin-bottom: 12px; }
+  .compare-score-big { font-family: 'Bebas Neue', sans-serif; font-size: 56px; line-height: 1; margin-bottom: 4px; }
+  .compare-grade { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  .compare-bars { display: flex; flex-direction: column; gap: 10px; }
+  .compare-bar-row { }
+  .compare-bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .compare-bar-name { font-size: 11px; color: var(--muted); }
+  .compare-bar-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .compare-track { height: 4px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+  .compare-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+
+  /* History tab */
+  .history-list { display: flex; flex-direction: column; gap: 10px; }
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .history-item:hover { border-color: rgba(255,255,255,0.15); }
+  .history-score { font-family: 'Bebas Neue', sans-serif; font-size: 24px; line-height: 1; flex-shrink: 0; }
+  .history-info { flex: 1; }
+  .history-name { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--blue); }
+  .history-time { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .history-del {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .history-del:hover { border-color: var(--red); color: var(--red); background: rgba(255,69,69,0.08); }
+  .empty-state { text-align: center; padding: 48px; color: var(--muted); font-size: 14px; }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+
+  /* Badge tab */
+  .badge-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; }
+  .badge-preview { margin-bottom: 24px; }
+  .badge-preview img { height: 24px; }
+  .badge-code {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    word-break: break-all;
+    color: var(--green);
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+
+  /* SVG score ring */
+  .score-ring { transform: rotate(-90deg); }
+  .score-ring-bg { fill: none; stroke: rgba(255,255,255,0.06); }
+  .score-ring-fill { fill: none; stroke-linecap: round; transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
+  .score-ring-text { font-family: 'Bebas Neue', sans-serif; dominant-baseline: central; text-anchor: middle; }
+
+  /* Utility */
+  .text-green { color: var(--green); }
+  .text-blue { color: var(--blue); }
+  .text-amber { color: var(--amber); }
+  .text-red { color: var(--red); }
+  .mt-4 { margin-top: 4px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  @media (max-width: 768px) {
+    .hero { grid-template-columns: 1fr; gap: 40px; }
+    .hero h1 { font-size: 52px; }
+    .hero-right { display: none; }
+    .dim-grid { grid-template-columns: 1fr; }
+    .compare-inputs, .compare-results { grid-template-columns: 1fr; }
+    .score-header { flex-direction: column; }
+  }
 </style>
 </head>
 <body>
-<div class="bg-effects">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-</div>
-<div class="grid-overlay"></div>
 
-<div class="page">
-<div class="wrap">
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
 
-<!-- NAV -->
 <nav>
-  <a class="nav-logo" href="#">
-    <div class="logo-badge">DW</div>
-    DEPLOYWATCH
-  </a>
-  <div class="nav-links">
-    <span class="nav-chip active">Analyzer</span>
-    <a class="nav-chip" href="https://github.com" target="_blank">GitHub</a>
+  <div class="nav-inner">
+    <div class="logo">DeployWatch <span>/ ANALYZER</span></div>
+    <div class="nav-chips">
+      <button class="nav-chip" onclick="scrollTo(0,0)">Analyzer</button>
+      <button class="nav-chip" onclick="switchTab('compare')">Compare</button>
+      <button class="nav-chip" onclick="switchTab('history')">History</button>
+    </div>
   </div>
 </nav>
 
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-left">
-    <div class="hero-eyebrow"><div class="pulse-dot"></div>Production Readiness Agent</div>
-    <h1>SHIP WITH<br/><span class="hl">CONFIDENCE</span></h1>
-    <p class="hero-desc">Score any GitHub repo across 8 production dimensions. Get live data, AI-powered recommendations, and know exactly what to fix before you deploy.</p>
-    <div class="hero-stats">
-      <div class="hstat"><div class="hstat-num" style="color:var(--green)">8</div><div class="hstat-lbl">DIMENSIONS</div></div>
-      <div class="hstat"><div class="hstat-num" style="color:var(--blue)">100</div><div class="hstat-lbl">POINT SCALE</div></div>
-      <div class="hstat"><div class="hstat-num" style="color:var(--amber)">LIVE</div><div class="hstat-lbl">GITHUB API</div></div>
-    </div>
-  </div>
-  <div class="hero-card">
-    <div class="hcard-label">// SAMPLE ANALYSIS</div>
-    <div class="hcard-score">
-      <div class="hcard-num">84</div>
-      <div class="hcard-den">/100</div>
-    </div>
-    <div class="hcard-grade">A — Almost There</div>
-    <div class="hcard-bars">
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Activity</span><span class="hbar-val">92</span></div><div class="hbar-track"><div class="hbar-fill" style="width:92%"></div></div></div>
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Documentation</span><span class="hbar-val">78</span></div><div class="hbar-track"><div class="hbar-fill" style="width:78%"></div></div></div>
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Security</span><span class="hbar-val">60</span></div><div class="hbar-track"><div class="hbar-fill" style="width:60%;background:var(--amber)"></div></div></div>
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Reliability</span><span class="hbar-val">85</span></div><div class="hbar-track"><div class="hbar-fill" style="width:85%"></div></div></div>
-      <div class="hbar"><div class="hbar-top"><span class="hbar-name">Community</span><span class="hbar-val">45</span></div><div class="hbar-track"><div class="hbar-fill" style="width:45%;background:var(--red)"></div></div></div>
-    </div>
-  </div>
-</section>
+<div class="container">
 
-<!-- ANALYZE -->
-<section class="analyze-section">
-  <div class="analyze-box">
-    <div class="analyze-title">ANALYZE A REPOSITORY</div>
-    <div class="analyze-sub">Paste any public GitHub URL and hit Analyze</div>
-
-    <div class="input-group">
-      <input class="repo-input" type="text" id="url" placeholder="https://github.com/owner/repo" autocomplete="off" spellcheck="false"/>
-      <button class="run-btn" id="btn" onclick="analyze()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        Analyze
-      </button>
-    </div>
-
-    <div class="input-tags">
-      <span class="itag">Activity</span><span class="itag">Documentation</span><span class="itag">Code Quality</span>
-      <span class="itag">Community</span><span class="itag">Reliability</span><span class="itag">Security</span>
-      <span class="itag">Performance</span><span class="itag">Innovation</span>
-    </div>
-
-    <div class="status-row" id="status"><div class="spin"></div><span id="stxt">Fetching...</span></div>
-    <div class="error-row" id="err"></div>
-  </div>
-</section>
-
-<!-- RESULTS -->
-<div id="results">
-
-  <!-- Score band -->
-  <div class="section-head">Overall Score</div>
-  <div class="score-band" id="score-band">
-    <div class="score-ring-wrap">
-      <svg class="score-ring-svg" viewBox="0 0 120 120">
-        <circle class="score-ring-bg" cx="60" cy="60" r="52"/>
-        <circle class="score-ring-fill" id="ring-fill" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
-      </svg>
-      <div class="score-ring-text">
-        <div class="score-ring-num" id="score-num">--</div>
-        <div class="score-ring-den">/100</div>
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-left">
+      <div class="hero-tag">v2.0 — Live GitHub API</div>
+      <h1>IS YOUR REPO<br><em>DEPLOY</em><br>READY?</h1>
+      <p>Paste any public GitHub repository URL. Get a scored readiness report across 8 production-critical dimensions in seconds.</p>
+      <div class="input-group">
+        <input class="url-input" id="mainInput" type="text" placeholder="github.com/owner/repo" />
+        <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()">Analyze →</button>
       </div>
     </div>
-    <div class="score-info">
-      <h2 id="repo-name">--</h2>
-      <div class="desc" id="repo-desc">--</div>
-      <div class="grade-badge" id="grade-badge">--</div>
-      <div class="cap-warn" id="cap-warn">⚠ Score capped at 60 — a critical dimension scored zero</div>
-    </div>
-    <div class="score-actions">
-      <button class="action-btn primary" onclick="shareRepo()">🔗 Share</button>
-      <button class="action-btn" onclick="showTab('history')">📋 History</button>
-      <button class="action-btn" onclick="showTab('badge')">🏷 Get Badge</button>
-    </div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="section-head">Details</div>
-  <div class="tabs">
-    <div class="tab active" onclick="showTab('dims')" id="tab-dims">Dimensions</div>
-    <div class="tab" onclick="showTab('recs')" id="tab-recs">Recommendations</div>
-    <div class="tab" onclick="showTab('compare')" id="tab-compare">Compare</div>
-    <div class="tab" onclick="showTab('history')" id="tab-history">History</div>
-    <div class="tab" onclick="showTab('badge')" id="tab-badge">Badge</div>
-  </div>
-
-  <!-- Dimensions panel -->
-  <div class="tab-panel active" id="panel-dims">
-    <div class="dim-grid" id="dims"></div>
-  </div>
-
-  <!-- Recommendations panel -->
-  <div class="tab-panel" id="panel-recs">
-    <div class="rec-list" id="recs"></div>
-  </div>
-
-  <!-- Compare panel -->
-  <div class="tab-panel" id="panel-compare">
-    <div class="compare-inputs">
-      <input class="compare-input" type="text" id="cmp1" placeholder="github.com/owner/repo-1"/>
-      <input class="compare-input" type="text" id="cmp2" placeholder="github.com/owner/repo-2"/>
-    </div>
-    <button class="compare-btn" id="cmp-btn" onclick="runCompare()">Compare Repos →</button>
-    <div id="compare-result"></div>
-  </div>
-
-  <!-- History panel -->
-  <div class="tab-panel" id="panel-history">
-    <div id="hist-content"></div>
-  </div>
-
-  <!-- Badge panel -->
-  <div class="tab-panel" id="panel-badge">
-    <div class="badge-section">
-      <div style="font-size:15px;font-weight:600;margin-bottom:6px">Embed your score in your README</div>
-      <div style="font-size:14px;color:var(--t2);margin-bottom:16px">Add this badge to show off your production readiness score.</div>
-      <div class="badge-preview" id="badge-preview"></div>
-      <div class="badge-code" id="badge-code">Run an analysis first to generate your badge.</div>
-      <button class="copy-btn" onclick="copyBadge()">Copy Markdown</button>
-    </div>
-  </div>
-
-</div><!-- /results -->
-
-</div><!-- /wrap -->
-
-<footer>
-  <div class="wrap" style="width:100%;display:flex;justify-content:space-between;align-items:center">
-    <p>DeployWatch — Production Engineering Hackathon 2026</p>
-    <p>Built with the <a href="https://docs.github.com/en/rest" target="_blank">GitHub REST API</a></p>
-  </div>
-</footer>
-</div><!-- /page -->
-
-<script>
-// ── Config ─────────────────────────────────────────────────────
-const GH = 'https://api.github.com';
-const GH_TOKEN = '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';
-const WEIGHTS = [0.18,0.15,0.15,0.15,0.12,0.10,0.08,0.07];
-const DIM_NAMES = ['Activity & Maintenance','Documentation Quality','Code Quality','Community Engagement','Reliability & Testing','Security & Best Practices','Performance','Innovation & Impact'];
-
-// ── URL parsing ─────────────────────────────────────────────────
-function parseUrl(s) {
-  s = s.trim().replace(/\/$/, '').replace(/\.git$/, '');
-  const m = s.match(/github\.com\/([^\/\s]+\/[^\/\s]+)/);
-  if (m) return m[1];
-  if (/^[\w.-]+\/[\w.-]+$/.test(s)) return s;
-  return null;
-}
-
-// ── GitHub fetch ────────────────────────────────────────────────
-async function gh(path) {
-  const headers = { Accept: 'application/vnd.github+json' };
-  if (GH_TOKEN) headers['Authorization'] = `Bearer ${GH_TOKEN}`;
-  const r = await fetch(GH + path, { headers });
-  if (!r.ok) throw new Error(`GitHub ${r.status}`);
-  return r.json();
-}
-
-// ── Scoring ─────────────────────────────────────────────────────
-function mk(s,g,b){return{score:Math.min(Math.max(Math.round(s),0),100),good:g,bad:b};}
-
-function scoreActivity(r,n){
-  let s=0,g=[],b=[];
-  const d=(Date.now()-new Date(r.pushed_at))/86400000;
-  if(d<1){s+=25;g.push('Committed today');}else if(d<7){s+=18;g.push('Committed this week');}else if(d<30){s+=10;g.push('Committed this month');}else if(d<90){s+=4;b.push(`Last push ${Math.round(d)} days ago`);}else{b.push('No commits in 90+ days');}
-  if(n>=200){s+=40;g.push(`${n}+ commits — very active`);}else if(n>=50){s+=30;g.push(`${n} commits`);}else if(n>=15){s+=18;g.push(`${n} commits`);}else{s+=5;b.push(`Only ${n} commits — limited history`);}
-  const i=r.open_issues_count;
-  if(i===0){s+=35;g.push('Zero open issues');}else if(i<5){s+=25;g.push(`${i} open issues`);}else if(i<20){s+=15;g.push(`${i} open issues`);}else if(i<50){s+=5;b.push(`${i} open issues — review backlog`);}else{b.push(`${i} open issues — out of control`);}
-  return mk(s,g,b);
-}
-
-function scoreDoc(r,readme,wiki,pages){
-  let s=0,g=[],b=[];
-  if(readme){s+=35;g.push('README.md present');}else b.push('No README — add one immediately');
-  if(r.description){s+=20;g.push(`Description: "${r.description.slice(0,50)}${r.description.length>50?'...':''}"`);}else b.push('No repo description');
-  if(wiki){s+=20;g.push('GitHub Wiki enabled');}else b.push('No wiki');
-  if(pages){s+=25;g.push('GitHub Pages live');}else b.push('No GitHub Pages');
-  return mk(s,g,b);
-}
-
-function scoreCode(r,langs){
-  let s=0,g=[],b=[];
-  const ll=Object.keys(langs);
-  if(ll.length>0){s+=25;g.push(`Primary: ${ll[0]}`);}
-  if(ll.length>2){s+=10;g.push(`Multi-language: ${ll.slice(0,3).join(', ')}`);}
-  const kb=r.size;
-  if(kb<1000){s+=25;g.push('Lightweight repo');}else if(kb<20000){s+=18;g.push('Reasonable size');}else if(kb<100000){s+=8;b.push('Large repo — consider cleanup');}else{b.push('Very large — use Git LFS');}
-  if(r.default_branch==='main'){s+=15;g.push('Modern main branch');}else{b.push('Rename master → main');}
-  if(r.has_issues){s+=15;g.push('Issue tracking on');}
-  if(r.has_projects){s+=10;g.push('Project boards active');}else b.push('No project boards');
-  return mk(s,g,b);
-}
-
-function scoreCommunity(r){
-  let s=0,g=[],b=[];
-  const st=r.stargazers_count;
-  if(st>=10000){s+=40;g.push(`${st.toLocaleString()} stars`);}else if(st>=1000){s+=32;g.push(`${st.toLocaleString()} stars`);}else if(st>=100){s+=22;g.push(`${st} stars`);}else if(st>=10){s+=12;g.push(`${st} stars`);}else if(st>0){s+=5;g.push(`${st} stars`);}else{b.push('0 stars — needs promotion');}
-  const f=r.forks_count;
-  if(f>=500){s+=30;g.push(`${f} forks`);}else if(f>=50){s+=22;g.push(`${f} forks`);}else if(f>=5){s+=12;g.push(`${f} forks`);}else{b.push('Very few forks');}
-  if(r.watchers_count>100){s+=20;g.push(`${r.watchers_count} watchers`);}else if(r.watchers_count>10){s+=12;g.push(`${r.watchers_count} watchers`);}else{b.push('Low watcher count');}
-  if(r.subscribers_count>5){s+=10;g.push('Active subscribers');}
-  return mk(s,g,b);
-}
-
-function scoreReliability(r,ci){
-  let s=0,g=[],b=[];
-  if(ci){s+=45;g.push('CI/CD pipeline found');}else{b.push('No CI/CD — add GitHub Actions');}
-  if(!r.archived){s+=20;g.push('Actively maintained');}else{b.push('Repo is archived');}
-  if(r.has_issues){s+=15;g.push('Issue tracking on');}
-  const i=r.open_issues_count;
-  if(i===0){s+=20;g.push('No open issues');}else if(i<10){s+=12;}else if(i<30){s+=5;b.push(`${i} issues — needs triage`);}else{b.push(`${i} issues — unmanaged`);}
-  return mk(s,g,b);
-}
-
-function scoreSecurity(r,sec){
-  let s=0,g=[],b=[];
-  if(sec){s+=40;g.push('SECURITY.md present');}else{b.push('No SECURITY.md');}
-  if(r.license){s+=35;g.push(`License: ${r.license.spdx_id}`);}else{b.push('No license — legally risky');}
-  if(!r.archived){s+=15;g.push('Actively maintained');}
-  s+=10;
-  return mk(s,g,b);
-}
-
-function scorePerf(r){
-  let s=0,g=[],b=[];
-  const kb=r.size;
-  if(kb<500){s+=40;g.push('Extremely lean');}else if(kb<5000){s+=30;g.push('Lightweight');}else if(kb<50000){s+=18;g.push('Reasonable size');}else{b.push('Heavy repo — consider Git LFS');}
-  if(r.forks_count>10){s+=25;g.push('Widely forked');}
-  if(r.stargazers_count>20){s+=20;g.push('Good visibility');}
-  if(r.open_issues_count<5){s+=15;g.push('Low issue overhead');}else{b.push('High issue count affects maintainability');}
-  return mk(s,g,b);
-}
-
-function scoreInnovation(r,topics){
-  let s=0,g=[],b=[];
-  const age=(Date.now()-new Date(r.created_at))/86400000;
-  if(age<30){s+=30;g.push('Brand new project');}else if(age<180){s+=22;g.push('Fresh growing project');}else if(age<730){s+=14;g.push('Maturing project');}else{s+=8;g.push(`Established: ${Math.round(age/365*10)/10}yr`);}
-  if(topics.length>=5){s+=30;g.push(`${topics.length} topic tags`);}else if(topics.length>0){s+=18;g.push(`Topics: ${topics.join(', ')}`);}else{b.push('No topic tags');}
-  const st=r.stargazers_count;
-  if(st>=500){s+=40;g.push('Strong traction');}else if(st>=50){s+=28;g.push('Gaining visibility');}else if(st>=10){s+=15;}else{b.push('Limited visibility');}
-  return mk(s,g,b);
-}
-
-// ── Grade ───────────────────────────────────────────────────────
-function grade(s){
-  if(s>=85)return{letter:'A+',label:'Production Ready',c:'g'};
-  if(s>=75)return{letter:'A', label:'Almost There',    c:'g'};
-  if(s>=65)return{letter:'B', label:'Needs Attention', c:'b'};
-  if(s>=50)return{letter:'C', label:'Improvements Needed',c:'a'};
-  if(s>=35)return{letter:'D', label:'Not Production Safe',c:'a'};
-  return{letter:'F',label:'Critical Issues',c:'r'};
-}
-
-function dimCol(s){return s>=75?'g':s>=55?'b':s>=35?'a':'r';}
-function dimColVar(s){return s>=75?'var(--green)':s>=55?'var(--blue)':s>=35?'var(--amber)':'var(--red)';}
-
-// ── State ───────────────────────────────────────────────────────
-let currentSlug = '';
-let currentScore = 0;
-let currentDims = [];
-
-// ── Render ───────────────────────────────────────────────────────
-function render(repo, dims) {
-  currentDims = dims;
-  currentSlug = repo.full_name;
-
-  document.getElementById('results').style.display = 'block';
-
-  const overall = Math.round(dims.reduce((a,d,i)=>a+d.score*WEIGHTS[i],0));
-  const capped  = dims.some(d=>d.score===0);
-  const final   = capped ? Math.min(overall,60) : overall;
-  currentScore = final;
-
-  const g = grade(final);
-
-  // Ring animation
-  document.getElementById('score-band').setAttribute('data-score', final);
-  const circ = 2 * Math.PI * 52;
-  const offset = circ - (final/100)*circ;
-  const fill = document.getElementById('ring-fill');
-  fill.style.stroke = final>=75?'var(--green)':final>=55?'var(--blue)':final>=35?'var(--amber)':'var(--red)';
-  setTimeout(()=>{fill.style.strokeDashoffset = offset;},100);
-
-  document.getElementById('score-num').textContent = final;
-  document.getElementById('score-num').style.color = dimColVar(final);
-  document.getElementById('repo-name').textContent = repo.full_name;
-  document.getElementById('repo-desc').textContent = repo.description || 'No description provided';
-
-  const gb = document.getElementById('grade-badge');
-  gb.textContent = `${g.letter}  ${g.label}`;
-  gb.className = `grade-badge c${g.c} bg-${g.c}`;
-  if(capped) document.getElementById('cap-warn').style.display='block';
-
-  // Dimensions
-  const de = document.getElementById('dims');
-  de.innerHTML = '';
-  dims.forEach((d,i)=>{
-    const dc = dimCol(d.score);
-    const col = dimColVar(d.score);
-    const pct = Math.round(WEIGHTS[i]*100);
-    const card = document.createElement('div');
-    card.className = 'dim-card';
-    card.style.setProperty('--dc', col);
-    card.querySelector ? null : null;
-    card.innerHTML = `
-      <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:${col};border-radius:2px 0 0 2px"></div>
-      <div class="dim-head">
-        <div class="dim-name">${DIM_NAMES[i]}</div>
-        <div class="dim-right">
-          <div class="dim-score-num" style="color:${col}">${d.score}</div>
-          <div class="dim-score-den">/100</div>
+    <div class="hero-right">
+      <!-- Static sample card -->
+      <div class="sample-card">
+        <div class="sample-card-header">
+          <div>
+            <div class="sample-repo-name">vercel/next.js</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;font-family:'DM Mono',monospace;">Sample Preview</div>
+          </div>
+          <div class="sample-grade">A+</div>
+        </div>
+        <div class="sample-ring-wrap">
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle class="score-ring-bg" cx="60" cy="60" r="50" stroke-width="8" transform="rotate(-90 60 60)"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="url(#sampleGrad)" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="47.1"
+              transform="rotate(-90 60 60)"/>
+            <defs>
+              <linearGradient id="sampleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#00E87A"/>
+                <stop offset="100%" stop-color="#38BEFF"/>
+              </linearGradient>
+            </defs>
+            <text x="60" y="57" fill="white" font-family="Bebas Neue, sans-serif" font-size="26" text-anchor="middle" dominant-baseline="middle">85</text>
+            <text x="60" y="74" fill="#6B7280" font-family="DM Mono, monospace" font-size="9" text-anchor="middle">/100</text>
+          </svg>
+        </div>
+        <div class="sample-bars">
+          <div class="sample-bar-row">
+            <div class="sample-bar-label">Activity</div>
+            <div class="sample-bar-track"><div class="sample-bar-fill" style="width:92%;background:var(--green)"></div></div>
+            <div class="sample-bar-score">92</div>
+          </div>
+          <div class="sample-bar-row">
+            <div class="sample-bar-label">Docs</div>
+            <div class="sample-bar-track"><div class="sample-bar-fill" style="width:88%;background:var(--green)"></div></div>
+            <div class="sample-bar-score">88</div>
+          </div>
+          <div class="sample-bar-row">
+            <div class="sample-bar-label">Code Quality</div>
+            <div class="sample-bar-track"><div class="sample-bar-fill" style="width:75%;background:var(--green)"></div></div>
+            <div class="sample-bar-score">75</div>
+          </div>
+          <div class="sample-bar-row">
+            <div class="sample-bar-label">Community</div>
+            <div class="sample-bar-track"><div class="sample-bar-fill" style="width:100%;background:var(--green)"></div></div>
+            <div class="sample-bar-score">100</div>
+          </div>
+          <div class="sample-bar-row">
+            <div class="sample-bar-label">Security</div>
+            <div class="sample-bar-track"><div class="sample-bar-fill" style="width:65%;background:var(--blue)"></div></div>
+            <div class="sample-bar-score">65</div>
+          </div>
+          <div class="sample-bar-row">
+            <div class="sample-bar-label">Testing</div>
+            <div class="sample-bar-track"><div class="sample-bar-fill" style="width:80%;background:var(--green)"></div></div>
+            <div class="sample-bar-score">80</div>
+          </div>
         </div>
       </div>
-      <div class="bar-track"><div class="bar-fill" id="bf${i}" style="width:0%;background:${col}"></div></div>
-      <div class="dim-meta">
-        <div class="dim-weight">Weight: ${pct}%</div>
-        <div class="dim-arrow" id="da${i}">▼</div>
+    </div>
+  </div>
+
+  <!-- Status / Error -->
+  <div class="status-bar" id="statusBar">
+    <div class="spinner"></div>
+    <span id="statusMsg">Fetching repository info...</span>
+  </div>
+  <div class="error-bar" id="errorBar">
+    ⚠ <span id="errorMsg"></span>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results">
+    <!-- Score header -->
+    <div class="score-header">
+      <div class="score-ring-wrap">
+        <svg id="scoreRing" width="140" height="140" viewBox="0 0 140 140">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#00E87A"/>
+              <stop offset="100%" stop-color="#38BEFF"/>
+            </linearGradient>
+          </defs>
+          <circle class="score-ring-bg" cx="70" cy="70" r="58" stroke-width="10" transform="rotate(-90 70 70)"/>
+          <circle id="ringFill" cx="70" cy="70" r="58" fill="none" stroke="url(#ringGrad)" stroke-width="10"
+            stroke-linecap="round" stroke-dasharray="364.42" stroke-dashoffset="364.42"
+            transform="rotate(-90 70 70)" />
+          <text id="ringScore" x="70" y="65" fill="white" font-family="Bebas Neue, sans-serif" font-size="34" text-anchor="middle" dominant-baseline="middle">0</text>
+          <text x="70" y="88" fill="#6B7280" font-family="DM Mono, monospace" font-size="10" text-anchor="middle">/100</text>
+        </svg>
       </div>
-      <div class="dim-expand" id="dd${i}">
-        ${d.good.map(x=>`<div class="drow"><span class="drow-icon" style="color:var(--green)">✓</span><span style="color:var(--t2)">${x}</span></div>`).join('')}
-        ${d.bad.map(x=>`<div class="drow"><span class="drow-icon" style="color:var(--amber)">!</span><span style="color:var(--t2)">${x}</span></div>`).join('')}
-      </div>`;
-    card.onclick = ()=>{
-      const dd=document.getElementById('dd'+i);
-      const da=document.getElementById('da'+i);
-      dd.classList.toggle('open');
-      card.classList.toggle('open');
+      <div class="score-info">
+        <div class="score-repo-name" id="repoName">—</div>
+        <div class="score-repo-desc" id="repoDesc">—</div>
+        <div class="score-meta" id="scoreMeta"></div>
+      </div>
+      <div class="score-actions">
+        <div class="grade-badge" id="gradeBadge">—</div>
+        <button class="btn btn-secondary" onclick="shareRepo()" style="font-size:12px;padding:8px 14px;">⬡ Share</button>
+      </div>
+    </div>
+
+    <!-- Tabs nav -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab('dimensions')">Dimensions</button>
+      <button class="tab-btn" onclick="switchTab('recommendations')">Recommendations</button>
+      <button class="tab-btn" onclick="switchTab('compare')">Compare</button>
+      <button class="tab-btn" onclick="switchTab('history')">History</button>
+      <button class="tab-btn" onclick="switchTab('badge')">Badge</button>
+    </div>
+
+    <!-- DIMENSIONS TAB -->
+    <div class="tab-content active" id="tab-dimensions">
+      <div class="dim-grid" id="dimGrid"></div>
+    </div>
+
+    <!-- RECOMMENDATIONS TAB -->
+    <div class="tab-content" id="tab-recommendations">
+      <div class="rec-list" id="recList"></div>
+    </div>
+
+    <!-- COMPARE TAB -->
+    <div class="tab-content" id="tab-compare">
+      <div class="compare-inputs">
+        <div class="compare-col">
+          <label>Repo A</label>
+          <input class="url-input" id="compareA" type="text" placeholder="github.com/owner/repo-a" style="width:100%"/>
+        </div>
+        <div class="compare-col">
+          <label>Repo B</label>
+          <input class="url-input" id="compareB" type="text" placeholder="github.com/owner/repo-b" style="width:100%"/>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="runCompare()">Compare Repos →</button>
+      <div id="compareStatus" style="margin-top:12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--muted);display:none;"></div>
+      <div class="compare-results" id="compareResults" style="display:none;"></div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div class="tab-content" id="tab-history">
+      <div id="historyList"></div>
+    </div>
+
+    <!-- BADGE TAB -->
+    <div class="tab-content" id="tab-badge">
+      <div class="badge-section">
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">Badge Preview</div>
+        <div class="badge-preview" id="badgePreview"></div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin:20px 0 10px;">Markdown</div>
+        <div class="badge-code" id="badgeCode"></div>
+        <button class="btn btn-primary" onclick="copyBadge()">Copy Markdown</button>
+        <div id="badgeCopied" style="display:none;margin-top:10px;font-family:'DM Mono',monospace;font-size:12px;color:var(--green);">✓ Copied to clipboard!</div>
+      </div>
+    </div>
+
+  </div><!-- end results -->
+
+  <div style="height:80px;"></div>
+</div><!-- end container -->
+
+<script>
+// ─────────────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────────────
+const GITHUB_TOKEN = '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'; // Replace with your token
+
+// ─────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────
+let currentResult = null;
+
+// ─────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────
+function parseRepoUrl(url) {
+  url = url.trim().replace(/\/$/, '');
+  const m = url.match(/(?:github\.com\/)?([^\/\s]+)\/([^\/\s#?]+)/);
+  return m ? { owner: m[1], repo: m[2] } : null;
+}
+
+function clamp(v, min=0, max=100) { return Math.max(min, Math.min(max, v)); }
+
+function scoreColor(s) {
+  if (s >= 75) return 'var(--green)';
+  if (s >= 55) return 'var(--blue)';
+  if (s >= 35) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function gradeInfo(score) {
+  if (score >= 85) return { grade: 'A+', label: 'Production Ready', color: 'var(--green)', bg: 'rgba(0,232,122,0.12)', border: 'rgba(0,232,122,0.3)' };
+  if (score >= 75) return { grade: 'A',  label: 'Almost There',      color: 'var(--green)', bg: 'rgba(0,232,122,0.10)', border: 'rgba(0,232,122,0.25)' };
+  if (score >= 65) return { grade: 'B',  label: 'Needs Attention',    color: 'var(--blue)',  bg: 'rgba(56,190,255,0.10)', border: 'rgba(56,190,255,0.25)' };
+  if (score >= 50) return { grade: 'C',  label: 'Improvements Needed',color: 'var(--amber)', bg: 'rgba(255,176,32,0.10)', border: 'rgba(255,176,32,0.25)' };
+  if (score >= 35) return { grade: 'D',  label: 'Not Production Safe',color: 'var(--amber)', bg: 'rgba(255,176,32,0.08)', border: 'rgba(255,176,32,0.2)' };
+  return { grade: 'F', label: 'Critical Issues', color: 'var(--red)', bg: 'rgba(255,69,69,0.10)', border: 'rgba(255,69,69,0.3)' };
+}
+
+function setStatus(msg) {
+  document.getElementById('statusBar').classList.add('visible');
+  document.getElementById('statusMsg').textContent = msg;
+}
+function hideStatus() { document.getElementById('statusBar').classList.remove('visible'); }
+function showError(msg) {
+  document.getElementById('errorBar').classList.add('visible');
+  document.getElementById('errorMsg').textContent = msg;
+}
+function hideError() { document.getElementById('errorBar').classList.remove('visible'); }
+
+async function ghFetch(url) {
+  const headers = { 'Accept': 'application/vnd.github+json' };
+  if (GITHUB_TOKEN && GITHUB_TOKEN !== 'YOUR_GITHUB_TOKEN') {
+    headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+  }
+  const res = await fetch(url, { headers });
+  if (res.status === 403) throw new Error('rate_limit');
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('http_' + res.status);
+  return res.json();
+}
+
+// ─────────────────────────────────────────────────────
+// SCORING ENGINE
+// ─────────────────────────────────────────────────────
+async function analyzeRepo(owner, repo) {
+  const BASE = `https://api.github.com/repos/${owner}/${repo}`;
+
+  setStatus('Fetching repository info...');
+  const repoData = await ghFetch(BASE);
+  if (!repoData) throw new Error('not_found');
+
+  setStatus('Loading commits...');
+  const commits = await ghFetch(`${BASE}/commits?per_page=100`).catch(() => []);
+
+  setStatus('Checking documentation & CI...');
+  const [readme, pages, workflows, security, languages] = await Promise.all([
+    ghFetch(`${BASE}/contents/README.md`).catch(() => null),
+    ghFetch(`${BASE}/pages`).catch(() => null),
+    ghFetch(`${BASE}/contents/.github/workflows`).catch(() => null),
+    ghFetch(`${BASE}/contents/SECURITY.md`).catch(() => null),
+    ghFetch(`${BASE}/languages`).catch(() => null),
+  ]);
+
+  setStatus('Calculating scores...');
+
+  const now = Date.now();
+  const lastPush = new Date(repoData.pushed_at).getTime();
+  const createdAt = new Date(repoData.created_at).getTime();
+  const daysSincePush = (now - lastPush) / 86400000;
+  const repoAgeDays = (now - createdAt) / 86400000;
+  const commitCount = Array.isArray(commits) ? commits.length : 0;
+  const starCount = repoData.stargazers_count || 0;
+  const forkCount = repoData.forks_count || 0;
+  const watcherCount = repoData.watchers_count || 0;
+  const openIssues = repoData.open_issues_count || 0;
+  const topicCount = (repoData.topics || []).length;
+  const hasLicense = !!repoData.license;
+  const hasDesc = !!(repoData.description && repoData.description.trim());
+  const hasWiki = !!repoData.has_wiki;
+  const hasReadme = !!readme;
+  const hasPages = !!pages;
+  const hasCICD = !!workflows;
+  const hasSecurity = !!security;
+  const isArchived = !!repoData.archived;
+  const repoSizeKB = repoData.size || 0;
+  const defaultBranch = repoData.default_branch || '';
+  const langCount = languages ? Object.keys(languages).length : 0;
+
+  const dimensions = [];
+
+  // 1. Activity & Maintenance (18%)
+  {
+    const checks = [];
+    let s = 0;
+    const activityScore = daysSincePush < 7 ? 40 : daysSincePush < 30 ? 30 : daysSincePush < 90 ? 20 : daysSincePush < 365 ? 10 : 0;
+    const commitScore = commitCount >= 100 ? 30 : commitCount >= 50 ? 22 : commitCount >= 20 ? 14 : commitCount >= 5 ? 7 : 0;
+    const issueScore = openIssues < 5 ? 20 : openIssues < 20 ? 15 : openIssues < 50 ? 8 : openIssues < 100 ? 3 : 0;
+    const archiveScore = isArchived ? 0 : 10;
+    s = clamp(activityScore + commitScore + issueScore + archiveScore);
+    checks.push({ pass: daysSincePush < 30, label: `Last push: ${Math.round(daysSincePush)} days ago` });
+    checks.push({ pass: commitCount >= 20, label: `${commitCount}+ commits fetched` });
+    checks.push({ pass: openIssues < 50, label: `${openIssues} open issues` });
+    checks.push({ pass: !isArchived, label: isArchived ? 'Repo is archived' : 'Repo is active' });
+    dimensions.push({ name: 'Activity & Maintenance', weight: 18, score: s, checks });
+  }
+
+  // 2. Documentation Quality (15%)
+  {
+    const checks = [];
+    let s = 0;
+    if (hasReadme) { s += 40; checks.push({ pass: true, label: 'README.md present' }); }
+    else checks.push({ pass: false, label: 'README.md missing' });
+    if (hasDesc) { s += 25; checks.push({ pass: true, label: 'Repo description set' }); }
+    else checks.push({ pass: false, label: 'No repo description' });
+    if (hasWiki) { s += 20; checks.push({ pass: true, label: 'GitHub Wiki enabled' }); }
+    else checks.push({ pass: false, label: 'No GitHub Wiki' });
+    if (hasPages) { s += 15; checks.push({ pass: true, label: 'GitHub Pages live' }); }
+    else checks.push({ pass: false, label: 'No GitHub Pages' });
+    dimensions.push({ name: 'Documentation Quality', weight: 15, score: clamp(s), checks });
+  }
+
+  // 3. Code Quality (15%)
+  {
+    const checks = [];
+    let s = 0;
+    const hasLang = langCount > 0;
+    if (hasLang) { s += 30; checks.push({ pass: true, label: `${langCount} language(s) detected` }); }
+    else checks.push({ pass: false, label: 'No language detected' });
+    const sizeOk = repoSizeKB > 0 && repoSizeKB < 500000;
+    if (sizeOk) { s += 25; checks.push({ pass: true, label: `Repo size: ${(repoSizeKB/1024).toFixed(1)} MB` }); }
+    else checks.push({ pass: false, label: `Large repo: ${(repoSizeKB/1024).toFixed(1)} MB` });
+    const branchOk = defaultBranch === 'main';
+    if (branchOk) { s += 25; checks.push({ pass: true, label: 'Default branch is "main"' }); }
+    else checks.push({ pass: false, label: `Default branch: "${defaultBranch}"` });
+    const hasProjects = repoData.has_projects;
+    if (hasProjects) { s += 20; checks.push({ pass: true, label: 'Projects board enabled' }); }
+    else checks.push({ pass: false, label: 'No projects board' });
+    dimensions.push({ name: 'Code Quality', weight: 15, score: clamp(s), checks });
+  }
+
+  // 4. Community Engagement (15%)
+  {
+    const checks = [];
+    let s = 0;
+    const starScore = starCount >= 1000 ? 40 : starCount >= 100 ? 30 : starCount >= 10 ? 18 : starCount >= 1 ? 8 : 0;
+    const forkScore = forkCount >= 500 ? 30 : forkCount >= 50 ? 22 : forkCount >= 5 ? 12 : forkCount >= 1 ? 5 : 0;
+    const watchScore = watcherCount >= 100 ? 30 : watcherCount >= 10 ? 20 : watcherCount >= 1 ? 10 : 0;
+    s = clamp(starScore + forkScore + watchScore);
+    checks.push({ pass: starCount >= 10, label: `${starCount.toLocaleString()} stars` });
+    checks.push({ pass: forkCount >= 5, label: `${forkCount.toLocaleString()} forks` });
+    checks.push({ pass: watcherCount >= 5, label: `${watcherCount.toLocaleString()} watchers` });
+    dimensions.push({ name: 'Community Engagement', weight: 15, score: s, checks });
+  }
+
+  // 5. Reliability & Testing (12%)
+  {
+    const checks = [];
+    let s = 0;
+    if (hasCICD) { s += 50; checks.push({ pass: true, label: 'CI/CD workflows found (.github/workflows)' }); }
+    else checks.push({ pass: false, label: 'No CI/CD workflows' });
+    if (!isArchived) { s += 30; checks.push({ pass: true, label: 'Repo is actively maintained' }); }
+    else checks.push({ pass: false, label: 'Repo is archived' });
+    const issueOk = openIssues < 20;
+    if (issueOk) { s += 20; checks.push({ pass: true, label: `Low open issues (${openIssues})` }); }
+    else checks.push({ pass: false, label: `High open issues (${openIssues})` });
+    dimensions.push({ name: 'Reliability & Testing', weight: 12, score: clamp(s), checks });
+  }
+
+  // 6. Security & Best Practices (10%)
+  {
+    const checks = [];
+    let s = 0;
+    if (hasSecurity) { s += 60; checks.push({ pass: true, label: 'SECURITY.md present' }); }
+    else checks.push({ pass: false, label: 'No SECURITY.md' });
+    if (hasLicense) { s += 40; checks.push({ pass: true, label: `License: ${repoData.license.spdx_id}` }); }
+    else checks.push({ pass: false, label: 'No license file' });
+    dimensions.push({ name: 'Security & Best Practices', weight: 10, score: clamp(s), checks });
+  }
+
+  // 7. Performance (8%)
+  {
+    const checks = [];
+    let s = 0;
+    const sizeScore = repoSizeKB < 10000 ? 35 : repoSizeKB < 50000 ? 25 : repoSizeKB < 200000 ? 12 : 0;
+    const forkPerf = forkCount >= 10 ? 30 : forkCount >= 1 ? 15 : 0;
+    const starPerf = starCount >= 50 ? 25 : starCount >= 5 ? 12 : 0;
+    const issueOverhead = openIssues < 10 ? 10 : 0;
+    s = clamp(sizeScore + forkPerf + starPerf + issueOverhead);
+    checks.push({ pass: repoSizeKB < 50000, label: `Repo size: ${(repoSizeKB/1024).toFixed(1)} MB` });
+    checks.push({ pass: forkCount >= 10, label: `Fork signal: ${forkCount}` });
+    checks.push({ pass: starCount >= 50, label: `Star signal: ${starCount}` });
+    checks.push({ pass: openIssues < 10, label: `Issue overhead: ${openIssues} open` });
+    dimensions.push({ name: 'Performance', weight: 8, score: s, checks });
+  }
+
+  // 8. Innovation & Impact (7%)
+  {
+    const checks = [];
+    let s = 0;
+    const ageScore = repoAgeDays >= 365 ? 35 : repoAgeDays >= 90 ? 25 : repoAgeDays >= 30 ? 12 : 5;
+    const topicScore = topicCount >= 5 ? 35 : topicCount >= 2 ? 22 : topicCount >= 1 ? 10 : 0;
+    const starImpact = starCount >= 500 ? 30 : starCount >= 50 ? 20 : starCount >= 5 ? 10 : 0;
+    s = clamp(ageScore + topicScore + starImpact);
+    checks.push({ pass: repoAgeDays >= 90, label: `Repo age: ${Math.round(repoAgeDays)} days` });
+    checks.push({ pass: topicCount >= 2, label: `${topicCount} topic tag(s)` });
+    checks.push({ pass: starCount >= 50, label: `${starCount.toLocaleString()} stars (impact)` });
+    dimensions.push({ name: 'Innovation & Impact', weight: 7, score: s, checks });
+  }
+
+  // Weighted total
+  let total = dimensions.reduce((acc, d) => acc + (d.score * d.weight / 100), 0);
+  total = Math.round(total);
+
+  // Cap at 60 if any dimension is 0
+  if (dimensions.some(d => d.score === 0)) total = Math.min(total, 60);
+
+  return {
+    owner, repo,
+    repoData,
+    dimensions,
+    total,
+    timestamp: Date.now()
+  };
+}
+
+// ─────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────
+function renderResults(result) {
+  currentResult = result;
+  const { repoData, dimensions, total } = result;
+  const gi = gradeInfo(total);
+
+  // Score ring animation
+  const circumference = 364.42;
+  const offset = circumference - (total / 100) * circumference;
+  const ringFill = document.getElementById('ringFill');
+  const ringScore = document.getElementById('ringScore');
+  ringFill.style.strokeDashoffset = circumference;
+  ringScore.textContent = '0';
+  setTimeout(() => {
+    ringFill.style.strokeDashoffset = offset;
+    // Animate number
+    let start = 0, duration = 1200;
+    const step = (ts) => {
+      if (!step.startTime) step.startTime = ts;
+      const progress = Math.min((ts - step.startTime) / duration, 1);
+      ringScore.textContent = Math.round(progress * total);
+      if (progress < 1) requestAnimationFrame(step);
     };
-    de.appendChild(card);
-    setTimeout(()=>{document.getElementById('bf'+i).style.width=d.score+'%';},100+i*70);
+    requestAnimationFrame(step);
+  }, 100);
+
+  // Repo info
+  document.getElementById('repoName').textContent = `${result.owner}/${result.repo}`;
+  document.getElementById('repoDesc').textContent = repoData.description || 'No description provided.';
+
+  const meta = document.getElementById('scoreMeta');
+  meta.innerHTML = [
+    { dot: scoreColor(total), label: `${(repoData.stargazers_count||0).toLocaleString()} stars` },
+    { dot: 'var(--blue)', label: `${(repoData.forks_count||0).toLocaleString()} forks` },
+    { dot: 'var(--muted)', label: repoData.language || 'Unknown lang' },
+    { dot: 'var(--muted)', label: repoData.license ? repoData.license.spdx_id : 'No license' }
+  ].map(m => `<div class="score-meta-item"><div class="dot" style="background:${m.dot}"></div>${m.label}</div>`).join('');
+
+  // Grade badge
+  const gb = document.getElementById('gradeBadge');
+  gb.textContent = gi.grade;
+  gb.style.color = gi.color;
+  gb.style.background = gi.bg;
+  gb.style.border = `1px solid ${gi.border}`;
+  gb.innerHTML = gi.grade + `<small>${gi.label}</small>`;
+
+  // Dimension cards
+  const grid = document.getElementById('dimGrid');
+  grid.innerHTML = '';
+  dimensions.forEach((dim, i) => {
+    const color = scoreColor(dim.score);
+    const checksHtml = dim.checks.map(c => `
+      <div class="check-item">
+        <span class="check-icon ${c.pass ? 'check-pass' : 'check-fail'}">${c.pass ? '✓' : '⚠'}</span>
+        <span>${c.label}</span>
+      </div>`).join('');
+
+    const card = document.createElement('div');
+    card.className = 'dim-card';
+    card.innerHTML = `
+      <div class="dim-card-inner">
+        <div class="dim-accent" style="background:${color}"></div>
+        <div class="dim-body">
+          <div class="dim-header">
+            <div class="dim-name">${dim.name}</div>
+            <div class="dim-weight">×${dim.weight}%</div>
+          </div>
+          <div class="dim-score-row">
+            <div class="dim-score-num" style="color:${color}">${dim.score}</div>
+            <div class="dim-score-of">/100</div>
+          </div>
+          <div class="dim-progress-track">
+            <div class="dim-progress-fill" data-target="${dim.score}" style="background:${color}"></div>
+          </div>
+          <div class="dim-checks" id="checks-${i}">${checksHtml}</div>
+        </div>
+      </div>`;
+    card.addEventListener('click', () => {
+      const el = document.getElementById(`checks-${i}`);
+      el.classList.toggle('open');
+    });
+    grid.appendChild(card);
   });
+  // Animate progress bars
+  setTimeout(() => {
+    document.querySelectorAll('.dim-progress-fill').forEach(el => {
+      el.style.width = el.dataset.target + '%';
+    });
+  }, 150);
 
   // Recommendations
-  renderRecs(dims);
+  const failedDims = dimensions
+    .map(d => ({ ...d, failedChecks: d.checks.filter(c => !c.pass) }))
+    .filter(d => d.failedChecks.length > 0)
+    .sort((a, b) => a.score - b.score);
+
+  const recList = document.getElementById('recList');
+  recList.innerHTML = '';
+  if (failedDims.length === 0) {
+    recList.innerHTML = '<div class="empty-state"><div class="empty-icon">✓</div>All checks passed! This repo looks production-ready.</div>';
+  } else {
+    failedDims.forEach(dim => {
+      const priority = dim.score < 35 ? 'high' : dim.score < 65 ? 'medium' : 'low';
+      dim.failedChecks.forEach(check => {
+        const steps = getRecommendationSteps(dim.name, check.label);
+        recList.innerHTML += `
+          <div class="rec-card">
+            <div class="rec-header">
+              <span class="priority-badge priority-${priority}">${priority}</span>
+              <span class="rec-dim-label">${dim.name}</span>
+            </div>
+            <div class="rec-issue">${check.label}</div>
+            <div class="rec-steps">${steps.map((s,i) => `<div class="rec-step"><span class="rec-step-num">${i+1}.</span><span>${s}</span></div>`).join('')}</div>
+          </div>`;
+      });
+    });
+  }
 
   // Badge
-  renderBadge(final, g);
+  renderBadge(total, gi);
 
-  // History
-  saveHistory(repo, final, g);
-  renderHistory();
+  // Show results
+  document.getElementById('results').classList.add('visible');
 
-  // URL param
-  const url = new URL(window.location);
-  url.searchParams.set('repo', repo.full_name);
-  window.history.replaceState({}, '', url);
-
-  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Save to history
+  saveHistory(result);
 }
 
-function renderRecs(dims) {
-  const el = document.getElementById('recs');
-  el.innerHTML = '';
-  const allBad = dims.flatMap((d,i)=>d.bad.map(msg=>({dim:DIM_NAMES[i],msg,score:d.score}))).sort((a,b)=>a.score-b.score);
-  allBad.slice(0,8).forEach(item=>{
-    const isH=item.score<40,isM=item.score>=40&&item.score<65;
-    const p=isH?'high':isM?'medium':'low';
-    const pc=isH?'r':isM?'a':'b';
-    const pvar=isH?'var(--red)':isM?'var(--amber)':'var(--blue)';
-    const steps=getRec(item.msg);
-    const card=document.createElement('div');
-    card.className='rec-card';
-    card.style.borderLeftColor=pvar;
-    card.innerHTML=`
-      <div class="rec-head">
-        <div class="rec-priority c${pc} bg-${pc}">${p} priority</div>
-        <div class="rec-title">${item.dim}</div>
-      </div>
-      <div class="rec-body">${item.msg}</div>
-      ${steps.length?`<div class="rec-steps">${steps.map(s=>`<div class="rec-step">${s}</div>`).join('')}</div>`:''}`;
-    el.appendChild(card);
-  });
+function getRecommendationSteps(dimName, issue) {
+  const map = {
+    'README.md missing': ['Create a README.md in the root of your repo.', 'Include project overview, installation steps, and usage examples.', 'Add badges for CI status, license, and version.'],
+    'No repo description': ['Go to your repo on GitHub and click the gear icon next to "About".', 'Add a clear, concise one-line description of your project.', 'Include relevant keywords to improve discoverability.'],
+    'No GitHub Wiki': ['Enable the Wiki in your repo Settings → Features.', 'Document architecture decisions, API references, and developer guides.', 'Link the Wiki from your README for easy navigation.'],
+    'No GitHub Pages': ['Go to Settings → Pages and enable GitHub Pages from your docs or main branch.', 'Add project documentation, landing page, or API docs.', 'Use a framework like Docusaurus or MkDocs for rich docs.'],
+    'No CI/CD workflows': ['Create a .github/workflows/ directory in your repo.', 'Add a workflow file (e.g., ci.yml) with test and lint jobs.', 'Use GitHub Actions starter workflows for common languages.'],
+    'No SECURITY.md': ['Create a SECURITY.md file in the root of your repo.', 'Document how to report vulnerabilities responsibly.', 'Include your security policy and response time commitments.'],
+    'No license file': ['Add a LICENSE file via GitHub: click "Add file" → "Create new file" → name it LICENSE.', 'Choose an appropriate open-source license (MIT, Apache 2.0, GPL).', 'Reference the license in your README.'],
+    'Default branch: "master"': ['Go to Settings → Branches and rename your default branch to "main".', 'Update any CI/CD references to use "main" instead of "master".', 'Notify collaborators about the branch name change.'],
+    'No projects board': ['Go to your repo and click the "Projects" tab.', 'Create a kanban board to track features, bugs, and milestones.', 'Link issues and PRs to project cards for visibility.'],
+  };
+  for (const key of Object.keys(map)) {
+    if (issue.includes(key) || key.includes(issue.substring(0, 20))) return map[key];
+  }
+  // Generic
+  return [
+    `Address the issue: "${issue}" to improve your ${dimName} score.`,
+    'Review the GitHub documentation for best practices in this area.',
+    'Consider adding this to your repository improvement checklist.'
+  ];
 }
 
-function renderBadge(score, g) {
-  const col = score>=75?'brightgreen':score>=55?'blue':score>=35?'yellow':'red';
-  const scoreEnc = encodeURIComponent(score+'/100');
-  const labelEnc = encodeURIComponent(g.label);
-  const url = `https://img.shields.io/badge/DeployWatch-${scoreEnc}%20${labelEnc}-${col}?style=flat-square&logo=github`;
+function renderBadge(total, gi) {
+  const color = total >= 75 ? 'brightgreen' : total >= 60 ? 'green' : total >= 50 ? 'yellow' : total >= 35 ? 'orange' : 'red';
+  const encodedScore = encodeURIComponent(`${total}/100`);
+  const url = `https://img.shields.io/badge/DeployWatch-${encodedScore}-${color}?style=flat-square`;
   const md = `![DeployWatch Score](${url})`;
-  document.getElementById('badge-preview').innerHTML = `<img src="${url}" alt="DeployWatch Score" style="height:22px"/>`;
-  document.getElementById('badge-code').textContent = md;
+  document.getElementById('badgePreview').innerHTML = `<img src="${url}" alt="DeployWatch Score" />`;
+  document.getElementById('badgeCode').textContent = md;
 }
 
-function copyBadge() {
-  const code = document.getElementById('badge-code').textContent;
-  navigator.clipboard.writeText(code).then(()=>{
-    const btn=document.querySelector('.copy-btn');
-    btn.textContent='Copied!';
-    setTimeout(()=>{btn.textContent='Copy Markdown';},2000);
+// ─────────────────────────────────────────────────────
+// MAIN ANALYZE FLOW
+// ─────────────────────────────────────────────────────
+async function startAnalysis(url) {
+  const input = document.getElementById('mainInput');
+  const rawUrl = url || input.value;
+  const parsed = parseRepoUrl(rawUrl);
+
+  hideError();
+  if (!parsed) { showError('Invalid GitHub URL. Use format: github.com/owner/repo'); return; }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('results').classList.remove('visible');
+  setStatus('Connecting to GitHub API...');
+
+  try {
+    const result = await analyzeRepo(parsed.owner, parsed.repo);
+    hideStatus();
+    renderResults(result);
+  } catch (err) {
+    hideStatus();
+    if (err.message === 'rate_limit') showError('GitHub rate limit hit — your token may be invalid or expired.');
+    else if (err.message === 'not_found') showError('Repo not found — make sure it\'s public and the URL is correct.');
+    else showError('Something went wrong: ' + err.message);
+  } finally {
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+}
+
+// Enter key on main input
+document.getElementById('mainInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startAnalysis();
+});
+
+// ─────────────────────────────────────────────────────
+// TABS
+// ─────────────────────────────────────────────────────
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  const btn = document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`);
+  if (btn) btn.classList.add('active');
+  const content = document.getElementById('tab-' + tabId);
+  if (content) content.classList.add('active');
+
+  if (tabId === 'history') renderHistory();
+}
+
+// ─────────────────────────────────────────────────────
+// COMPARE
+// ─────────────────────────────────────────────────────
+async function runCompare() {
+  const urlA = document.getElementById('compareA').value;
+  const urlB = document.getElementById('compareB').value;
+  const parsedA = parseRepoUrl(urlA);
+  const parsedB = parseRepoUrl(urlB);
+
+  if (!parsedA || !parsedB) {
+    alert('Please enter two valid GitHub repo URLs.');
+    return;
+  }
+
+  const statusEl = document.getElementById('compareStatus');
+  const resultsEl = document.getElementById('compareResults');
+  statusEl.style.display = 'block';
+  resultsEl.style.display = 'none';
+
+  try {
+    statusEl.textContent = 'Analyzing repo A...';
+    const resA = await analyzeRepo(parsedA.owner, parsedA.repo);
+    statusEl.textContent = 'Analyzing repo B...';
+    const resB = await analyzeRepo(parsedB.owner, parsedB.repo);
+    statusEl.style.display = 'none';
+
+    resultsEl.style.display = 'grid';
+    resultsEl.innerHTML = [resA, resB].map(res => {
+      const gi = gradeInfo(res.total);
+      const barsHtml = res.dimensions.map(d => `
+        <div class="compare-bar-row">
+          <div class="compare-bar-label">
+            <span class="compare-bar-name">${d.name.split(' ')[0]}</span>
+            <span class="compare-bar-val">${d.score}</span>
+          </div>
+          <div class="compare-track">
+            <div class="compare-fill" style="width:0%;background:${scoreColor(d.score)}" data-target="${d.score}"></div>
+          </div>
+        </div>`).join('');
+      return `
+        <div class="compare-card">
+          <div class="compare-card-name">${res.owner}/${res.repo}</div>
+          <div class="compare-score-big" style="color:${gi.color}">${res.total}</div>
+          <div class="compare-grade">${gi.grade} — ${gi.label}</div>
+          <div class="compare-bars">${barsHtml}</div>
+        </div>`;
+    }).join('');
+
+    setTimeout(() => {
+      resultsEl.querySelectorAll('.compare-fill').forEach(el => {
+        el.style.width = el.dataset.target + '%';
+      });
+    }, 100);
+  } catch (err) {
+    statusEl.textContent = 'Error: ' + (err.message === 'not_found' ? 'Repo not found' : err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// HISTORY
+// ─────────────────────────────────────────────────────
+const HISTORY_KEY = 'deploywatch_history';
+
+function saveHistory(result) {
+  let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  // Remove duplicate
+  history = history.filter(h => h.owner !== result.owner || h.repo !== result.repo);
+  history.unshift({
+    owner: result.owner,
+    repo: result.repo,
+    total: result.total,
+    timestamp: result.timestamp
   });
-}
-
-// ── History (localStorage) ──────────────────────────────────────
-function saveHistory(repo, score, g) {
-  const hist = getHistory();
-  const entry = { slug: repo.full_name, score, grade: g.label, letter: g.letter, time: Date.now(), desc: repo.description||'' };
-  const idx = hist.findIndex(h=>h.slug===repo.full_name);
-  if(idx>=0) hist[idx]=entry; else hist.unshift(entry);
-  localStorage.setItem('dw_history', JSON.stringify(hist.slice(0,20)));
-}
-
-function getHistory() {
-  try { return JSON.parse(localStorage.getItem('dw_history')||'[]'); } catch { return []; }
-}
-
-function deleteHistory(slug) {
-  const hist = getHistory().filter(h=>h.slug!==slug);
-  localStorage.setItem('dw_history', JSON.stringify(hist));
-  renderHistory();
+  if (history.length > 20) history = history.slice(0, 20);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
 function renderHistory() {
-  const el = document.getElementById('hist-content');
-  const hist = getHistory();
-  if(!hist.length) {
-    el.innerHTML = '<div class="hist-empty">No scans yet. Analyze a repo and it will appear here.</div>';
+  const list = document.getElementById('historyList');
+  const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  if (history.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⊘</div>No analyses yet. Start by analyzing a repo above.</div>';
     return;
   }
-  el.innerHTML = `<div class="hist-list">${hist.map(h=>{
-    const c=dimColVar(h.score);
-    const t=new Date(h.time).toLocaleString();
-    return `<div class="hist-item" onclick="loadHistory('${h.slug}')">
-      <div class="hist-score" style="color:${c}">${h.score}</div>
-      <div class="hist-info">
-        <div class="hist-repo">${h.slug}</div>
-        <div class="hist-time">${t}</div>
-      </div>
-      <div class="hist-grade" style="color:${c};border-color:${c}">${h.letter}</div>
-      <div class="hist-del" onclick="event.stopPropagation();deleteHistory('${h.slug}')">✕</div>
-    </div>`;
-  }).join('')}</div>`;
+  list.innerHTML = '<div class="history-list">' + history.map((h, i) => {
+    const gi = gradeInfo(h.total);
+    const date = new Date(h.timestamp).toLocaleString();
+    return `
+      <div class="history-item" onclick="reanalyzeFromHistory('${h.owner}', '${h.repo}')">
+        <div class="history-score" style="color:${gi.color}">${h.total}</div>
+        <div class="history-info">
+          <div class="history-name">${h.owner}/${h.repo}</div>
+          <div class="history-time">${gi.grade} · ${date}</div>
+        </div>
+        <button class="history-del" onclick="event.stopPropagation();deleteHistory(${i})" title="Delete">✕</button>
+      </div>`;
+  }).join('') + '</div>';
 }
 
-function loadHistory(slug) {
-  document.getElementById('url').value = 'https://github.com/'+slug;
-  showTab('dims');
-  analyze();
+function deleteHistory(index) {
+  let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  history.splice(index, 1);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  renderHistory();
 }
 
-// ── Compare ─────────────────────────────────────────────────────
-async function runCompare() {
-  const s1 = parseUrl(document.getElementById('cmp1').value);
-  const s2 = parseUrl(document.getElementById('cmp2').value);
-  if(!s1||!s2){alert('Enter two valid GitHub repo URLs');return;}
-
-  const btn = document.getElementById('cmp-btn');
-  btn.disabled = true; btn.textContent = 'Comparing...';
-
-  try {
-    const [r1,r2] = await Promise.all([analyzeSlug(s1), analyzeSlug(s2)]);
-    renderCompare(r1, r2);
-  } catch(e) {
-    document.getElementById('compare-result').innerHTML=`<div class="error-row" style="display:block;margin-top:16px">Error: ${e.message}</div>`;
-  }
-
-  btn.disabled=false; btn.textContent='Compare Repos →';
+function reanalyzeFromHistory(owner, repo) {
+  document.getElementById('mainInput').value = `github.com/${owner}/${repo}`;
+  window.scrollTo(0, 0);
+  switchTab('dimensions');
+  startAnalysis(`github.com/${owner}/${repo}`);
 }
 
-async function analyzeSlug(slug) {
-  const repo = await gh(`/repos/${slug}`);
-  const [commits,langs,readme,pages,ci,sec] = await Promise.all([
-    gh(`/repos/${slug}/commits?per_page=100`).catch(()=>[]),
-    gh(`/repos/${slug}/languages`).catch(()=>({})),
-    gh(`/repos/${slug}/contents/README.md`).then(()=>true).catch(()=>false),
-    gh(`/repos/${slug}/pages`).then(()=>true).catch(()=>false),
-    gh(`/repos/${slug}/contents/.github/workflows`).then(()=>true).catch(()=>false),
-    gh(`/repos/${slug}/contents/SECURITY.md`).then(()=>true).catch(()=>false),
-  ]);
-  const dims=[
-    scoreActivity(repo,commits.length),scoreDoc(repo,readme,repo.has_wiki,pages),
-    scoreCode(repo,langs),scoreCommunity(repo),scoreReliability(repo,ci),
-    scoreSecurity(repo,sec),scorePerf(repo),scoreInnovation(repo,repo.topics||[]),
-  ];
-  const score=Math.round(dims.reduce((a,d,i)=>a+d.score*WEIGHTS[i],0));
-  return{repo,dims,score};
-}
-
-function renderCompare(a,b) {
-  const el=document.getElementById('compare-result');
-  const ga=grade(a.score), gb2=grade(b.score);
-  el.innerHTML=`
-    <div class="compare-grid">
-      ${renderCompareCol(a,ga)}
-      ${renderCompareCol(b,gb2)}
-    </div>`;
-  setTimeout(()=>{
-    document.querySelectorAll('.compare-dim-fill').forEach(f=>{
-      f.style.width=f.dataset.w+'%';
-    });
-  },100);
-}
-
-function renderCompareCol(data,g) {
-  const c=dimColVar(data.score);
-  return `<div class="compare-col">
-    <div class="compare-col-head">
-      <div class="compare-col-score" style="color:${c}">${data.score}</div>
-      <div>
-        <div class="compare-col-name">${data.repo.full_name}</div>
-        <div class="compare-col-grade">${g.letter} — ${g.label}</div>
-      </div>
-    </div>
-    <div class="compare-dim-list">
-      ${data.dims.map((d,i)=>{
-        const col=dimColVar(d.score);
-        return `<div class="compare-dim-row">
-          <div class="compare-dim-name">${DIM_NAMES[i].split(' ')[0]}</div>
-          <div class="compare-dim-score" style="color:${col}">${d.score}</div>
-          <div class="compare-dim-bar"><div class="compare-dim-fill" data-w="${d.score}" style="width:0%;background:${col}"></div></div>
-        </div>`;
-      }).join('')}
-    </div>
-  </div>`;
-}
-
-// ── Share ────────────────────────────────────────────────────────
-function shareRepo() {
-  const url = window.location.href;
-  navigator.clipboard.writeText(url).then(()=>{
-    const btn = document.querySelector('.action-btn.primary');
-    btn.textContent = '✅ Copied!';
-    setTimeout(()=>btn.innerHTML='🔗 Share',2000);
+// ─────────────────────────────────────────────────────
+// BADGE
+// ─────────────────────────────────────────────────────
+function copyBadge() {
+  const code = document.getElementById('badgeCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const el = document.getElementById('badgeCopied');
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 2500);
   });
 }
 
-// ── Tabs ─────────────────────────────────────────────────────────
-function showTab(name) {
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  document.getElementById('panel-'+name).classList.add('active');
-  if(name==='history') renderHistory();
+// ─────────────────────────────────────────────────────
+// SHARE
+// ─────────────────────────────────────────────────────
+function shareRepo() {
+  if (!currentResult) return;
+  const url = `${location.origin}${location.pathname}?repo=${currentResult.owner}/${currentResult.repo}`;
+  navigator.clipboard.writeText(url).then(() => alert('Share URL copied to clipboard!'));
 }
 
-// ── Recommendations map ──────────────────────────────────────────
-function getRec(msg) {
-  const m=msg.toLowerCase();
-  if(m.includes('readme'))      return['Create README.md with clear description','Add installation & usage instructions','Include a demo screenshot or GIF'];
-  if(m.includes('ci/cd'))       return['Add .github/workflows/ci.yml','Run tests automatically on push','Add build status badge to README'];
-  if(m.includes('license'))     return['Add a LICENSE file (MIT recommended)','Use choosealicense.com'];
-  if(m.includes('security'))    return['Create SECURITY.md with reporting guide','Enable Dependabot in Settings → Security'];
-  if(m.includes('star'))        return['Share on Twitter/X and LinkedIn','Post on Reddit r/programming','Submit to Hacker News as Show HN'];
-  if(m.includes('topic'))       return['Click ⚙️ next to About on repo page','Add 5-10 relevant topics'];
-  if(m.includes('description')) return['Click ⚙️ next to About on repo page','Write a sharp one-liner about the project'];
-  if(m.includes('wiki'))        return['Enable Wiki in repo Settings','Document architecture and setup guides'];
-  if(m.includes('pages'))       return['Enable GitHub Pages in Settings','Create a landing page or docs site'];
-  if(m.includes('master'))      return['git branch -m master main','Update default branch in Settings'];
-  if(m.includes('fork'))        return['Add CONTRIBUTING.md','Label issues as "good first issue"'];
-  return [];
-}
-
-// ── Main analyze ─────────────────────────────────────────────────
-async function analyze() {
-  const input = document.getElementById('url').value;
-  const slug  = parseUrl(input);
-  if(!slug){showErr('Enter a valid GitHub URL like https://github.com/owner/repo');return;}
-
-  document.getElementById('err').style.display='none';
-  document.getElementById('results').style.display='none';
-  document.getElementById('cap-warn').style.display='none';
-  document.getElementById('btn').disabled=true;
-
-  try {
-    showStatus('Fetching repo info...');
-    const repo = await gh(`/repos/${slug}`);
-
-    showStatus('Loading commits & languages...');
-    const [commits,langs] = await Promise.all([
-      gh(`/repos/${slug}/commits?per_page=100`).catch(()=>[]),
-      gh(`/repos/${slug}/languages`).catch(()=>({})),
-    ]);
-
-    showStatus('Checking docs, CI & security...');
-    const [readme,pages,ci,sec] = await Promise.all([
-      gh(`/repos/${slug}/contents/README.md`).then(()=>true).catch(()=>false),
-      gh(`/repos/${slug}/pages`).then(()=>true).catch(()=>false),
-      gh(`/repos/${slug}/contents/.github/workflows`).then(()=>true).catch(()=>false),
-      gh(`/repos/${slug}/contents/SECURITY.md`).then(()=>true).catch(()=>false),
-    ]);
-
-    showStatus('Calculating scores...');
-    const dims=[
-      scoreActivity(repo,commits.length),scoreDoc(repo,readme,repo.has_wiki,pages),
-      scoreCode(repo,langs),scoreCommunity(repo),scoreReliability(repo,ci),
-      scoreSecurity(repo,sec),scorePerf(repo),scoreInnovation(repo,repo.topics||[]),
-    ];
-
-    hideStatus();
-    document.getElementById('btn').disabled=false;
-    render(repo,dims);
-  } catch(e) {
-    if(e.message.includes('404'))showErr('Repo not found — make sure it\'s public');
-    else if(e.message.includes('403'))showErr('GitHub rate limit hit — add your token above to get 5000 req/hr');
-    else showErr(e.message);
-  }
-}
-
-function showStatus(m){document.getElementById('status').style.display='flex';document.getElementById('stxt').textContent=m;}
-function hideStatus(){document.getElementById('status').style.display='none';}
-function showErr(m){hideStatus();const e=document.getElementById('err');e.style.display='block';e.textContent='// error: '+m;document.getElementById('btn').disabled=false;}
-
-// ── Auto-load from URL param ─────────────────────────────────────
-window.addEventListener('load', ()=>{
+// ─────────────────────────────────────────────────────
+// AUTO-LOAD FROM URL PARAMS
+// ─────────────────────────────────────────────────────
+window.addEventListener('load', () => {
   const params = new URLSearchParams(window.location.search);
   const repo = params.get('repo');
-  if(repo){
-    document.getElementById('url').value='https://github.com/'+repo;
-    analyze();
+  if (repo) {
+    document.getElementById('mainInput').value = repo;
+    startAnalysis(repo);
   }
-  renderHistory();
 });
-
-document.getElementById('url').addEventListener('keydown',e=>{if(e.key==='Enter')analyze();});
 </script>
 </body>
 </html>
