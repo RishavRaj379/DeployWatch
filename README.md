@@ -112,7 +112,7 @@ Get a token at: [github.com/settings/tokens](https://github.com/settings/tokens)
 
 | Name | Role |
 |------|------|
-| [Your Name] | Backend, Scoring Engine, Architecture |
+| [Amrit Mundlapudi] | Backend, Scoring Engine, Architecture |
 | [Rishav Raj](https://github.com/RishavRaj379) | Frontend, Deployment, GitHub Pages |
 
 ---
